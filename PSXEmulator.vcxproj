@@ -139,7 +139,16 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="bios.cpp" />
+    <ClCompile Include="PSX.cpp" />
+    <ClCompile Include="CPU.cpp" />
     <ClCompile Include="main.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="bios.h" />
+    <ClInclude Include="PSX.h" />
+    <ClInclude Include="Constants.h" />
+    <ClInclude Include="CPU.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
