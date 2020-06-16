@@ -146,6 +146,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="bios.h" />
+    <ClInclude Include="instruction.h" />
     <ClInclude Include="PSX.h" />
     <ClInclude Include="Constants.h" />
     <ClInclude Include="CPU.h" />

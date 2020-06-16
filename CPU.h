@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cstdint>
+#include "instruction.h"
 
 class PSX;
 
@@ -15,26 +15,14 @@ private:
     uint32_t registers[32];
     uint32_t PC, hi, lo;
 
-    union Instruction {
-        struct RType {
-            uint32_t opcode : 6;
-            uint32_t rs : 5;
-            uint32_t rt : 5;
-            uint32_t rd : 5;
-            uint32_t shamt : 5;
-            uint32_t funct : 6;
-        } Rinst;
-        struct IType {
-            uint32_t opcode : 6;
-            uint32_t rs : 5;
-            uint32_t rt : 5;
-            uint32_t immediate : 16;
-        } Iinst;
-        struct JType {
-            uint32_t opcode : 6;
-            uint32_t address : 26;
-        } Jinst;
-        uint32_t inst;
-    };
+    uint32_t next_inst;
+
+    void sll(const Instruction& inst);
+    void or_(const Instruction& inst);
+    void j(const Instruction& inst);
+    void addiu(const Instruction& inst);
+    void ori(const Instruction& inst);
+    void lui(const Instruction& inst);
+    void sw(const Instruction& inst);
 };
 

@@ -7,6 +7,8 @@
 
 int main(int argc, char** argv) {
     PSX system;
-    system.Run();
+    for (int i = 0; i < 100; i++) {
+        system.Run();
+    }
     return 0;
 }

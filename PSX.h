@@ -10,9 +10,17 @@ public:
     PSX();
     void Run();
 
-    uint32_t Read32(const int address);
+    uint32_t Read32(uint32_t address);
+    void Write32(uint32_t address, const uint32_t data);
 private:
     std::unique_ptr<Bios> sys_bios;
     std::unique_ptr<CPU> sys_cpu;
+
+
+    const uint32_t region_mask[8] = {
+    0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,     // KUSEG
+    0x7FFFFFFF,                                         // KUSEG0
+    0x1FFFFFFF,                                         // KUSEG1
+    0xFFFFFFFF, 0xFFFFFFFF };                            // KUSEG2
 };
 
