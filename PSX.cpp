@@ -4,6 +4,7 @@
 PSX::PSX() {
     sys_bios = std::make_unique<Bios>(this);
     sys_cpu = std::make_unique<CPU>(this);
+    sys_ram = std::make_unique<RAM>();
     sys_bios->LoadBios("bios/SCPH1001.BIN");
 }
 
@@ -18,8 +19,10 @@ uint32_t PSX::Read32(uint32_t address) {
         return 0;
     }
 
-    // Read from BIOS
-    if (address >= BIOS_START_ADDRESS && address + 4 <= BIOS_START_ADDRESS + BIOS_SIZE) {
+    if (address >= RAM_START_ADDRESS 
+        && address + 4 <= RAM_START_ADDRESS + RAM_SIZE) {
+        return sys_bios->Read32(address - RAM_START_ADDRESS);
+    } else if (address >= BIOS_START_ADDRESS && address + 4 <= BIOS_START_ADDRESS + BIOS_SIZE) {
         return sys_bios->Read32(address - BIOS_START_ADDRESS);
     }
     printf("Unhandled memory access of size 32 at address %08x\n", address);
@@ -33,7 +36,10 @@ void PSX::Write32(uint32_t address, const uint32_t data) {
         return;
     }
     // Write to BIOS
-    if (address >= BIOS_START_ADDRESS && address + 4 <= BIOS_START_ADDRESS + BIOS_SIZE) {
+    if (address >= RAM_START_ADDRESS
+        && address + 4 <= RAM_START_ADDRESS + RAM_SIZE) {
+        sys_ram->Write32(address - RAM_START_ADDRESS, data);
+    } else if (address >= BIOS_START_ADDRESS && address + 4 <= BIOS_START_ADDRESS + BIOS_SIZE) {
 
     } else if (address >= MEM_CONTROL_1_START 
         && address + 4 <= MEM_CONTROL_1_START + MEM_CONTROL_1_SIZE) {

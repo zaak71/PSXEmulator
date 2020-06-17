@@ -4,6 +4,7 @@
 
 #include "bios.h"
 #include "CPU.h"
+#include "RAM.h"
 
 class PSX {
 public:
@@ -15,7 +16,7 @@ public:
 private:
     std::unique_ptr<Bios> sys_bios;
     std::unique_ptr<CPU> sys_cpu;
-
+    std::unique_ptr<RAM> sys_ram;
 
     const uint32_t region_mask[8] = {
     0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,     // KUSEG

@@ -140,16 +140,20 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="bios.cpp" />
+    <ClCompile Include="cop0.cpp" />
     <ClCompile Include="PSX.cpp" />
     <ClCompile Include="CPU.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="RAM.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="bios.h" />
+    <ClInclude Include="cop0.h" />
     <ClInclude Include="instruction.h" />
     <ClInclude Include="PSX.h" />
     <ClInclude Include="Constants.h" />
     <ClInclude Include="CPU.h" />
+    <ClInclude Include="RAM.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

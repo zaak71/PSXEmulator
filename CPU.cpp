@@ -50,6 +50,9 @@ void CPU::DecodeAndExecute(uint32_t instruction) {
         case 0x0F:
             lui(inst);
             break;
+        case 0x10:
+            
+            break;
         case 0x2B:
             sw(inst);
             break;
@@ -91,6 +94,13 @@ void CPU::lui(const Instruction& inst) {
     registers[0] = 0;
 }
 
+void CPU::mtc0(const Instruction& inst) {
+    COP0.Write(inst.rd(), registers[inst.rt()]);
+}
+
 void CPU::sw(const Instruction& inst) {
+    if (COP0.status_register.status_flags.isolate_cache != 0) {
+        return;
+    }
     system->Write32(registers[inst.rs()] + (int32_t)((int16_t)inst.imm()), registers[inst.rt()]);
 }
