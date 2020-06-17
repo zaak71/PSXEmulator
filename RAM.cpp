@@ -1,7 +1,10 @@
 #include "RAM.h"
 
-uint32_t RAM::Read32(uint32_t address)
-{
+RAM::RAM() {
+    memory.fill(0);
+}
+
+uint32_t RAM::Read32(uint32_t address) const {
     return *(uint32_t*)(memory.data() + address);
 }
 

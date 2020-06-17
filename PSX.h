@@ -22,6 +22,6 @@ private:
     0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,     // KUSEG
     0x7FFFFFFF,                                         // KUSEG0
     0x1FFFFFFF,                                         // KUSEG1
-    0xFFFFFFFF, 0xFFFFFFFF };                            // KUSEG2
+    0xFFFFFFFF, 0xFFFFFFFF};                            // KUSEG2
 };
 

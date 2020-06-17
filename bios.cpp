@@ -8,8 +8,7 @@ Bios::Bios(PSX* system) : system(system) {
 void Bios::LoadBios(const std::string& file_path) {
     std::ifstream bios_file(file_path, std::ios::binary | std::ios::in);
     if (bios_file.is_open()) {
-        bios_data.resize(512 * 1024);
-        bios_file.read((char*)bios_data.data(), 512 * 1024);
+        bios_file.read((char*)bios_data.data(), bios_data.size());
     }
     bios_file.close();
 }

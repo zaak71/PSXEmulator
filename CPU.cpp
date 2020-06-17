@@ -9,6 +9,7 @@ CPU::CPU(PSX* system) : system(system), next_inst(0) {
     }
     registers[0] = 0;
     hi = lo = 0;
+    pending_reg = pending_load_data = 0;
 }
 
 void CPU::RunInstruction() {
@@ -30,6 +31,10 @@ void CPU::DecodeAndExecute(uint32_t instruction) {
             case 0x25:
                 or_(inst);
                 break;
+            case 0x26:
+                xor_(inst);
+            case 0x27:
+                nor(inst);
             default:
                 printf("Unhandled Instruction: %08x\n", instruction);
                 printf("Unhandled Opcode: %02x\n", inst.opcode());
@@ -41,6 +46,12 @@ void CPU::DecodeAndExecute(uint32_t instruction) {
         case 0x02:
             j(inst);
             break;
+        case 0x05:
+            bne(inst);
+            break;
+        case 0x08:
+            addi(inst);
+            break;
         case 0x09:
             addiu(inst);
             break;
@@ -51,7 +62,10 @@ void CPU::DecodeAndExecute(uint32_t instruction) {
             lui(inst);
             break;
         case 0x10:
-            
+            mtc0(inst);
+            break;
+        case 0x23:
+            lw(inst);
             break;
         case 0x2B:
             sw(inst);
@@ -64,43 +78,122 @@ void CPU::DecodeAndExecute(uint32_t instruction) {
     }
 }
 
+void CPU::ExecutePendingLoad() {
+    if (is_pending_load && pending_reg != 0) {
+        registers[pending_reg] = pending_load_data;
+    }
+    is_pending_load = false;
+}
+
+void CPU::Branch(int imm) {
+    imm = imm << 2;
+    uint32_t pc = PC;
+    pc += imm;
+    // Compensate for the hardcoded add of 4
+    pc -= 4;
+    PC = pc;
+}
+
 void CPU::sll(const Instruction& inst) {
-    registers[inst.rd()] = registers[inst.rt()] << inst.shamt();
+    uint32_t result = registers[inst.rt()] << inst.shamt();
+    ExecutePendingLoad();
+    registers[inst.rd()] = result;
     registers[0] = 0;
 }
 
 void CPU::or_(const Instruction& inst) {
-    registers[inst.rd()] = registers[inst.rt()] | registers[inst.rs()];
+    
+    uint32_t result = registers[inst.rt()] | registers[inst.rs()];
+    ExecutePendingLoad();
+    registers[inst.rd()] = result;
+    registers[0] = 0;
+}
+
+void CPU::xor_(const Instruction& inst) {
+    uint32_t result = registers[inst.rt()] ^ registers[inst.rs()];
+    ExecutePendingLoad();
+    registers[inst.rd()] = result;
+    registers[0] = 0;
+}
+
+void CPU::nor(const Instruction& inst) {
+    uint32_t result = ~(registers[inst.rt()] | registers[inst.rs()]);
+    ExecutePendingLoad();
+    registers[inst.rd()] = result;
     registers[0] = 0;
 }
 
 void CPU::j(const Instruction& inst) {
+    ExecutePendingLoad();
     PC = (PC & 0xF0000000) | (inst.addr() << 2);
 }
 
+void CPU::bne(const Instruction& inst) {
+    bool result = registers[inst.rs()] != registers[inst.rt()];
+    ExecutePendingLoad();
+    if (result) {
+        Branch((int32_t)((int16_t)inst.imm16()));
+    }
+}
+
+void CPU::addi(const Instruction& inst) {
+    int32_t rs = (int32_t)registers[inst.rs()];
+    uint32_t imm16 = (int32_t)inst.imm16();
+    uint32_t sum = registers[inst.rs()] + inst.imm16();
+    if ((rs >= 0 && imm16 > INT32_MAX - rs) || (rs < 0 && imm16 < (INT32_MIN - rs))) {
+        printf("Overflow\n");
+        assert(false);
+    }
+    ExecutePendingLoad();
+    registers[inst.rs()] = sum;
+    registers[0] = 0;
+}
+
 void CPU::addiu(const Instruction& inst) {
-    registers[inst.rt()] = registers[inst.rs()] + inst.imm();
+    uint32_t result = registers[inst.rs()] + inst.imm16();
+    ExecutePendingLoad();
+    registers[inst.rt()] = result;
     registers[0] = 0;
 }
 
 void CPU::ori(const Instruction& inst) {
-    registers[inst.rt()] = registers[inst.rs()] | inst.imm();
+    uint32_t result = registers[inst.rs()] | inst.imm16();
+    ExecutePendingLoad();
+    registers[inst.rt()] = result;
     registers[0] = 0;
 }
 
 void CPU::lui(const Instruction& inst) {
-    uint32_t imm = inst.imm() << 16;
+    uint32_t imm = inst.imm16() << 16;
+    ExecutePendingLoad();
     registers[inst.rt()] = imm;
     registers[0] = 0;
 }
 
 void CPU::mtc0(const Instruction& inst) {
-    COP0.Write(inst.rd(), registers[inst.rt()]);
+    uint32_t data = registers[inst.rt()];
+    ExecutePendingLoad();
+    COP0.Write(inst.rd(), data);
+}
+
+void CPU::lw(const Instruction& inst) {
+    if (COP0.status_register.status_flags.isolate_cache != 0) {
+        return;
+    }
+    uint32_t address = registers[inst.rs()] + (int32_t)((int16_t)inst.imm16());
+    uint32_t rt = inst.rt();
+    ExecutePendingLoad();
+    pending_reg = rt;
+    is_pending_load = true;
+    pending_load_data = system->Read32(address);
 }
 
 void CPU::sw(const Instruction& inst) {
     if (COP0.status_register.status_flags.isolate_cache != 0) {
         return;
     }
-    system->Write32(registers[inst.rs()] + (int32_t)((int16_t)inst.imm()), registers[inst.rt()]);
+    uint32_t address = registers[inst.rs()] + (int32_t)((int16_t)inst.imm16());
+    uint32_t data = registers[inst.rt()];
+    ExecutePendingLoad();
+    system->Write32(address, data);
 }

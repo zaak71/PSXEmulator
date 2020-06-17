@@ -1,7 +1,7 @@
 #pragma once
 
 #include <string>
-#include <vector>
+#include <array>
 
 class PSX;
 
@@ -12,7 +12,7 @@ public:
 
     uint32_t Read32(int index) const;
 private:
-    std::vector<uint8_t> bios_data;
+    std::array<uint8_t, 512 * 1024> bios_data;
     PSX* system = nullptr;
 };
 

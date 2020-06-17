@@ -11,6 +11,6 @@ struct Instruction {
     uint32_t rt() const { return (inst >> 16) & 0x1F; }
     uint32_t rd() const { return (inst >> 11) & 0x1F; }
     uint32_t shamt() const { return (inst >> 6) & 0x1F; }
-    uint32_t imm() const { return inst & 0xFFFF; }
+    uint16_t imm16() const { return (uint16_t)(inst & 0xFFFF); }
     uint32_t addr() const { return inst & 0x03FFFFFF; }
 };
