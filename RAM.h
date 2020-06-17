@@ -6,9 +6,16 @@
 class RAM {
 public:
     RAM();
-    
-    uint32_t Read32(uint32_t address) const;
-    void Write32(uint32_t address, uint32_t data);
+
+    template <typename Value>
+    Value Read(uint32_t offset) const {
+        return *(Value*)(memory.data() + offset);
+    }
+
+    template <typename Value>
+    void Write(uint32_t offset, Value data) {
+        *(Value*)(memory.data() + offset) = data;
+    }
 private:
     std::array<uint8_t, RAM_SIZE> memory;
 };

@@ -27,9 +27,11 @@ private:
     void Branch(int imm);
 
     void sll(const Instruction& inst);
+    void addu(const Instruction& inst);
     void or_(const Instruction& inst);
     void xor_(const Instruction& inst);
     void nor(const Instruction& inst);
+    void sltu(const Instruction& inst);
     void j(const Instruction& inst);
     void bne(const Instruction& inst);
     void addi(const Instruction& inst);
@@ -38,6 +40,8 @@ private:
     void lui(const Instruction& inst);
     void mtc0(const Instruction& inst);
     void lw(const Instruction& inst);
+    void sb(const Instruction& inst);
+    void sh(const Instruction& inst);
     void sw(const Instruction& inst);
 };
 

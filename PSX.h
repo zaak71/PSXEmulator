@@ -13,6 +13,8 @@ public:
 
     uint32_t Read32(uint32_t address);
     void Write32(uint32_t address, const uint32_t data);
+    void Write16(uint32_t address, const uint16_t data);
+    void Write8(uint32_t address, const uint8_t data);
 private:
     std::unique_ptr<Bios> sys_bios;
     std::unique_ptr<CPU> sys_cpu;

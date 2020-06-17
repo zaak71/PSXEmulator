@@ -21,12 +21,14 @@ uint32_t PSX::Read32(uint32_t address) {
 
     if (address >= RAM_START_ADDRESS 
         && address + 4 <= RAM_START_ADDRESS + RAM_SIZE) {
-        return sys_bios->Read32(address - RAM_START_ADDRESS);
-    } else if (address >= BIOS_START_ADDRESS && address + 4 <= BIOS_START_ADDRESS + BIOS_SIZE) {
+        return sys_ram->Read<uint32_t>(address - RAM_START_ADDRESS);
+    } else if (address >= BIOS_START_ADDRESS 
+        && address + 4 <= BIOS_START_ADDRESS + BIOS_SIZE) {
         return sys_bios->Read32(address - BIOS_START_ADDRESS);
+    } else {
+        printf("Unhandled memory access of size 32 at address %08x\n", address);
+        return 0;
     }
-    printf("Unhandled memory access of size 32 at address %08x\n", address);
-    return 0;
 }
 
 void PSX::Write32(uint32_t address, const uint32_t data) {
@@ -35,21 +37,71 @@ void PSX::Write32(uint32_t address, const uint32_t data) {
         printf("Warning: misaligned memory access of size 32 at address %08x\n", address);
         return;
     }
-    // Write to BIOS
+
     if (address >= RAM_START_ADDRESS
         && address + 4 <= RAM_START_ADDRESS + RAM_SIZE) {
-        sys_ram->Write32(address - RAM_START_ADDRESS, data);
-    } else if (address >= BIOS_START_ADDRESS && address + 4 <= BIOS_START_ADDRESS + BIOS_SIZE) {
-
+        sys_ram->Write(address - RAM_START_ADDRESS, data);
+    } else if (address >= BIOS_START_ADDRESS 
+        && address + 4 <= BIOS_START_ADDRESS + BIOS_SIZE) {
+        printf("Write to BIOS\n");
     } else if (address >= MEM_CONTROL_1_START 
         && address + 4 <= MEM_CONTROL_1_START + MEM_CONTROL_1_SIZE) {
         printf("Write to Memory Control 1\n");
     } else if (address >= MEM_CONTROL_2_START
         && address + 4 <= MEM_CONTROL_2_START + MEM_CONTROL_2_SIZE) {
         printf("Write to Memory Control 2\n");
-    }
-    else if (address >= CACHE_CONTROL_START
+    } else if (address >= CACHE_CONTROL_START
         && address + 4 <= CACHE_CONTROL_START + CACHE_CONTROL_SIZE) {
+        printf("Write to Cache Control\n");
+    } else {
+        printf("Unhandled write at address %08x\n", address);
+    }
+}
+
+void PSX::Write16(uint32_t address, const uint16_t data) {
+    address = address & region_mask[address >> 29];
+    if (address & 0x01) {
+        printf("Warning: misaligned memory access of size 16 at address %08x\n", address);
+        return;
+    }
+
+    if (address >= RAM_START_ADDRESS
+        && address + 2 <= RAM_START_ADDRESS + RAM_SIZE) {
+        sys_ram->Write(address - RAM_START_ADDRESS, data);
+    } else if (address >= BIOS_START_ADDRESS 
+        && address + 2 <= BIOS_START_ADDRESS + BIOS_SIZE) {
+        printf("Write to BIOS\n");
+    } else if (address >= MEM_CONTROL_1_START
+        && address + 2 <= MEM_CONTROL_1_START + MEM_CONTROL_1_SIZE) {
+        printf("Write to Memory Control 1\n");
+    } else if (address >= MEM_CONTROL_2_START
+        && address + 2 <= MEM_CONTROL_2_START + MEM_CONTROL_2_SIZE) {
+        printf("Write to Memory Control 2\n");
+    } else if (address >= CACHE_CONTROL_START
+        && address + 2 <= CACHE_CONTROL_START + CACHE_CONTROL_SIZE) {
+        printf("Write to Cache Control\n");
+    } else {
+        printf("Unhandled write at address %08x\n", address);
+    }
+}
+
+void PSX::Write8(uint32_t address, const uint8_t data) {
+    address = address & region_mask[address >> 29];
+
+    if (address >= RAM_START_ADDRESS
+        && address + 1 <= RAM_START_ADDRESS + RAM_SIZE) {
+        sys_ram->Write(address - RAM_START_ADDRESS, data);
+    } else if (address >= BIOS_START_ADDRESS 
+        && address + 1 <= BIOS_START_ADDRESS + BIOS_SIZE) {
+        printf("Write to BIOS\n");
+    } else if (address >= MEM_CONTROL_1_START
+        && address + 1 <= MEM_CONTROL_1_START + MEM_CONTROL_1_SIZE) {
+        printf("Write to Memory Control 1\n");
+    } else if (address >= MEM_CONTROL_2_START
+        && address + 1 <= MEM_CONTROL_2_START + MEM_CONTROL_2_SIZE) {
+        printf("Write to Memory Control 2\n");
+    } else if (address >= CACHE_CONTROL_START
+        && address + 1 <= CACHE_CONTROL_START + CACHE_CONTROL_SIZE) {
         printf("Write to Cache Control\n");
     } else {
         printf("Unhandled write at address %08x\n", address);

@@ -7,6 +7,13 @@ public:
     uint32_t Read(int reg_num);
     void Write(int reg_num, uint32_t data);
 
+    uint32_t bpc_reg;
+    uint32_t bda_reg;
+    uint32_t jump_dest;
+    uint32_t dcic_register;
+    uint32_t bdam_reg;
+    uint32_t bpcm_reg;
+
     union Cause {
         uint32_t reg = 0;
         struct flags {
