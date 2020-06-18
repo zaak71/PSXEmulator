@@ -1,5 +1,8 @@
 #pragma once
 
+#define EXPANSION1_START        0x1F000000
+#define EXPANSION1_SIZE         0x80100
+
 #define BIOS_START_ADDRESS      0x1FC00000
 #define BIOS_SIZE               512 * 1024
 

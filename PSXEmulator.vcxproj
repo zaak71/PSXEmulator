@@ -145,6 +145,7 @@
     <ClCompile Include="CPU.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="RAM.cpp" />
+    <ClCompile Include="SPU.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="bios.h" />
@@ -154,6 +155,7 @@
     <ClInclude Include="Constants.h" />
     <ClInclude Include="CPU.h" />
     <ClInclude Include="RAM.h" />
+    <ClInclude Include="SPU.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

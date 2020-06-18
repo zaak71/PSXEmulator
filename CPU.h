@@ -26,19 +26,30 @@ private:
     void ExecutePendingLoad();
     void Branch(int imm);
 
+    void HandleCop0(const Instruction& inst);
+
     void sll(const Instruction& inst);
+    void jr(const Instruction& inst);
     void addu(const Instruction& inst);
+    void and_(const Instruction& inst);
     void or_(const Instruction& inst);
     void xor_(const Instruction& inst);
     void nor(const Instruction& inst);
     void sltu(const Instruction& inst);
+
     void j(const Instruction& inst);
+    void jal(const Instruction& inst);
+    void beq(const Instruction& inst);
     void bne(const Instruction& inst);
     void addi(const Instruction& inst);
     void addiu(const Instruction& inst);
+    void andi(const Instruction& inst);
     void ori(const Instruction& inst);
+    void xori(const Instruction& inst);
     void lui(const Instruction& inst);
     void mtc0(const Instruction& inst);
+    void lb(const Instruction& inst);
+    void lh(const Instruction& inst);
     void lw(const Instruction& inst);
     void sb(const Instruction& inst);
     void sh(const Instruction& inst);
