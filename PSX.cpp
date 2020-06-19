@@ -8,6 +8,7 @@ PSX::PSX() {
     sys_cpu = std::make_unique<CPU>(this);
     sys_ram = std::make_unique<RAM>();
     sys_spu = std::make_unique<SPU>();
+    sys_irq = std::make_unique<IRQ>();
     sys_bios->LoadBios("bios/SCPH1001.BIN");
 }
 
@@ -96,6 +97,9 @@ void PSX::Write32(uint32_t address, const uint32_t data) {
     } else if (address >= CACHE_CONTROL_START
         && address + 4 <= CACHE_CONTROL_START + CACHE_CONTROL_SIZE) {
         printf("Write to Cache Control\n");
+    } else if (address >= IRQ_START
+        && address + 4 <= IRQ_START + IRQ_SIZE) {
+        sys_irq->Write32(address - IRQ_START, data);
     } else {
         printf("Unhandled write of size 32 at address %08x\n", address);
     }

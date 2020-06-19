@@ -36,6 +36,9 @@
     <ClCompile Include="SPU.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="IRQ.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="bios.h">
@@ -60,6 +63,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="SPU.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="IRQ.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

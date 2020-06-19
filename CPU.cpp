@@ -32,6 +32,9 @@ void CPU::DecodeAndExecute(uint32_t instruction) {
                 case 0x08:
                     jr(inst);
                     break;
+                case 0x20:
+                    add(inst);
+                    break;
                 case 0x21:
                     addu(inst);
                     break;
@@ -89,12 +92,7 @@ void CPU::DecodeAndExecute(uint32_t instruction) {
             lui(inst);
             break;
         case 0x10:
-            if (inst.rs() == 0x04) {
-                mtc0(inst);
-            } else {
-                printf("Unhandled COP0 instruction: %08x\n", instruction);
-                assert(false);
-            }
+            HandleCop0(inst);
             break;
         case 0x20:
             lb(inst);
@@ -139,7 +137,18 @@ void CPU::Branch(int imm) {
 }
 
 void CPU::HandleCop0(const Instruction& inst) {
-    //if (inst.rs())
+    switch (inst.rs() & 0x3F) {
+        case 0x00:
+            mfc0(inst);
+            break;
+        case 0x04:
+            mtc0(inst);
+            break;
+        default:
+            printf("Unhandled COP0 instruction: %08x\n", inst.inst);
+            assert(false);
+            break;
+    }
 }
 
 void CPU::sll(const Instruction& inst) {
@@ -153,6 +162,19 @@ void CPU::jr(const Instruction& inst) {
     uint32_t address = registers[inst.rs()];
     ExecutePendingLoad();
     PC = address;
+}
+
+void CPU::add(const Instruction& inst) {
+    int32_t rs = (int32_t)registers[inst.rs()];
+    int32_t rt = (int32_t)registers[inst.rt()];
+    int32_t result = rs + rt;
+    if ((rs >= 0 && rt > INT32_MAX - rs) || (rs < 0 && rt < (INT32_MIN - rs))) {
+        printf("Overflow\n");
+        assert(false);
+    }
+    ExecutePendingLoad();
+    registers[inst.rd()] = result;
+    registers[0] = 0;
 }
 
 void CPU::addu(const Instruction& inst) {
@@ -270,6 +292,15 @@ void CPU::lui(const Instruction& inst) {
     ExecutePendingLoad();
     registers[inst.rt()] = imm;
     registers[0] = 0;
+}
+
+void CPU::mfc0(const Instruction& inst) {
+    uint32_t rt = inst.rt();
+    uint32_t cop0_reg = inst.rd();
+    ExecutePendingLoad();
+    pending_reg = rt;
+    is_pending_load = true;
+    pending_load_data = COP0.Read(cop0_reg);
 }
 
 void CPU::mtc0(const Instruction& inst) {

@@ -6,6 +6,7 @@
 #include "CPU.h"
 #include "RAM.h"
 #include "SPU.h"
+#include "IRQ.h"
 
 class PSX {
 public:
@@ -23,6 +24,7 @@ private:
     std::unique_ptr<CPU> sys_cpu;
     std::unique_ptr<RAM> sys_ram;
     std::unique_ptr<SPU> sys_spu;
+    std::unique_ptr<IRQ> sys_irq;
 
     const uint32_t region_mask[8] = {
     0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,     // KUSEG

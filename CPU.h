@@ -30,6 +30,7 @@ private:
 
     void sll(const Instruction& inst);
     void jr(const Instruction& inst);
+    void add(const Instruction& inst);
     void addu(const Instruction& inst);
     void and_(const Instruction& inst);
     void or_(const Instruction& inst);
@@ -47,6 +48,7 @@ private:
     void ori(const Instruction& inst);
     void xori(const Instruction& inst);
     void lui(const Instruction& inst);
+    void mfc0(const Instruction& inst);
     void mtc0(const Instruction& inst);
     void lb(const Instruction& inst);
     void lh(const Instruction& inst);
