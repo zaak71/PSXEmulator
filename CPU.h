@@ -29,21 +29,36 @@ private:
     void HandleCop0(const Instruction& inst);
 
     void sll(const Instruction& inst);
+    void branches(const Instruction& inst);
+    void srl(const Instruction& inst);
+    void sra(const Instruction& inst);
     void jr(const Instruction& inst);
+    void jalr(const Instruction& inst);
+    void mflo(const Instruction& inst);
+    void mfhi(const Instruction& inst);
+    void div(const Instruction& inst);
+    void divu(const Instruction& inst);
     void add(const Instruction& inst);
     void addu(const Instruction& inst);
+    void sub(const Instruction& inst);
+    void subu(const Instruction& inst);
     void and_(const Instruction& inst);
     void or_(const Instruction& inst);
     void xor_(const Instruction& inst);
     void nor(const Instruction& inst);
+    void slt(const Instruction& inst);
     void sltu(const Instruction& inst);
 
     void j(const Instruction& inst);
     void jal(const Instruction& inst);
     void beq(const Instruction& inst);
     void bne(const Instruction& inst);
+    void blez(const Instruction& inst);
+    void bgtz(const Instruction& inst);
     void addi(const Instruction& inst);
     void addiu(const Instruction& inst);
+    void slti(const Instruction& inst);
+    void sltiu(const Instruction& inst);
     void andi(const Instruction& inst);
     void ori(const Instruction& inst);
     void xori(const Instruction& inst);
@@ -53,6 +68,8 @@ private:
     void lb(const Instruction& inst);
     void lh(const Instruction& inst);
     void lw(const Instruction& inst);
+    void lbu(const Instruction& inst);
+    void lhu(const Instruction& inst);
     void sb(const Instruction& inst);
     void sh(const Instruction& inst);
     void sw(const Instruction& inst);

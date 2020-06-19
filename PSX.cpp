@@ -68,6 +68,9 @@ uint32_t PSX::Read32(uint32_t address) const {
     } else if (address >= BIOS_START_ADDRESS 
         && address + 4 <= BIOS_START_ADDRESS + BIOS_SIZE) {
         return sys_bios->Read<uint32_t>(address - BIOS_START_ADDRESS);
+    } else if (address >= IRQ_START
+        && address + 4 <= IRQ_START + IRQ_SIZE) {
+        return sys_irq->Read32(address - IRQ_START);
     } else {
         printf("Unhandled memory access of size 32 at address %08x\n", address);
         assert(false);
@@ -130,6 +133,9 @@ void PSX::Write16(uint32_t address, const uint16_t data) {
     } else if (address >= CACHE_CONTROL_START
         && address + 2 <= CACHE_CONTROL_START + CACHE_CONTROL_SIZE) {
         printf("Write to Cache Control\n");
+    } else if (address >= TIMER_START
+        && address + 2 <= TIMER_START + TIMER_SIZE) {
+        printf("Write to Timers\n");
     } else {
         printf("Unhandled write of size 16 at address %08x\n", address);
     }

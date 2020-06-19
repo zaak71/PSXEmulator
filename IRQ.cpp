@@ -1,5 +1,7 @@
 #include "IRQ.h"
 
+#include <cstdio>
+
 void IRQ::Write32(uint32_t offset, uint32_t data) {
 	switch (offset) {
 		case 0:
@@ -10,5 +12,20 @@ void IRQ::Write32(uint32_t offset, uint32_t data) {
 			break;
 		default:
 			break;
+	}
+}
+
+uint32_t IRQ::Read32(uint32_t offset) {
+	switch (offset) {
+	case 0:
+		return i_stat;
+		break;
+	case 4:
+		return i_mask.reg;
+		break;
+	default:
+		printf("Unhandled memory access of IRQ, size 32 at offset %01x\n", offset);
+		return 0;
+		break;
 	}
 }

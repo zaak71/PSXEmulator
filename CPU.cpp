@@ -29,14 +29,41 @@ void CPU::DecodeAndExecute(uint32_t instruction) {
                 case 0x00:
                     sll(inst);
                     break;
+                case 0x02:
+                    srl(inst);
+                    break;
+                case 0x03:
+                    sra(inst);
+                    break;
                 case 0x08:
                     jr(inst);
+                    break;
+                case 0x09:
+                    jalr(inst);
+                    break;
+                case 0x10:
+                    mfhi(inst);
+                    break;
+                case 0x12:
+                    mflo(inst);
+                    break;
+                case 0x1A:
+                    div(inst);
+                    break;
+                case 0x1B:
+                    divu(inst);
                     break;
                 case 0x20:
                     add(inst);
                     break;
                 case 0x21:
                     addu(inst);
+                    break;
+                case 0x22:
+                    sub(inst);
+                    break;
+                case 0x23:
+                    subu(inst);
                     break;
                 case 0x24:
                     and_(inst);
@@ -50,6 +77,9 @@ void CPU::DecodeAndExecute(uint32_t instruction) {
                 case 0x27:
                     nor(inst);
                     break;
+                case 0x2A:
+                    slt(inst);
+                    break;
                 case 0x2B:
                     sltu(inst);
                     break;
@@ -60,7 +90,10 @@ void CPU::DecodeAndExecute(uint32_t instruction) {
                     assert(false);
                     break;
                 }
-        break;
+            break;
+        case 0x01:
+            branches(inst);
+            break;
         case 0x02:
             j(inst);
             break;
@@ -73,11 +106,23 @@ void CPU::DecodeAndExecute(uint32_t instruction) {
         case 0x05:
             bne(inst);
             break;
+        case 0x06:
+            blez(inst);
+            break;
+        case 0x07:
+            bgtz(inst);
+            break;
         case 0x08:
             addi(inst);
             break;
         case 0x09:
             addiu(inst);
+            break;
+        case 0x0A:
+            slti(inst);
+            break;
+        case 0x0B:
+            sltiu(inst);
             break;
         case 0x0C:
             andi(inst);
@@ -102,6 +147,12 @@ void CPU::DecodeAndExecute(uint32_t instruction) {
             break;
         case 0x23:
             lw(inst);
+            break;
+        case 0x24:
+            lbu(inst);
+            break;
+        case 0x25:
+            lhu(inst);
             break;
         case 0x28:
             sb(inst);
@@ -158,10 +209,93 @@ void CPU::sll(const Instruction& inst) {
     registers[0] = 0;
 }
 
+void CPU::branches(const Instruction& inst) {
+    bool bgez = inst.inst >> 16 & 0x01;
+    bool link = inst.inst >> 20 & 0x01 != 0;
+    bool result = (int32_t)registers[inst.rs()] < 0;
+    if (bgez) {
+        result = (int32_t)registers[inst.rs()] >= 0;
+    }
+    ExecutePendingLoad();
+    if (result) {
+        if (link) {
+            registers[31] = PC;
+        }
+        Branch((int32_t)((int16_t)inst.imm16()));
+    }
+}
+
+void CPU::srl(const Instruction& inst) {
+    uint32_t result = registers[inst.rt()] >> inst.shamt();
+    ExecutePendingLoad();
+    registers[inst.rd()] = result;
+    registers[0] = 0;
+}
+
+void CPU::sra(const Instruction& inst) {
+    uint32_t result = (int32_t)registers[inst.rt()] >> inst.shamt();
+    ExecutePendingLoad();
+    registers[inst.rd()] = result;
+    registers[0] = 0;
+}
+
 void CPU::jr(const Instruction& inst) {
     uint32_t address = registers[inst.rs()];
     ExecutePendingLoad();
     PC = address;
+}
+
+void CPU::jalr(const Instruction& inst) {
+    uint32_t address = registers[inst.rs()];
+    ExecutePendingLoad();
+    registers[inst.rd()] = PC;
+    PC = address;
+}
+
+void CPU::mfhi(const Instruction& inst) {
+    ExecutePendingLoad();
+    registers[inst.rd()] = hi;
+}
+
+void CPU::mflo(const Instruction& inst) {
+    ExecutePendingLoad();
+    registers[inst.rd()] = lo;
+}
+
+
+void CPU::div(const Instruction& inst) {
+    int32_t num = (int32_t)registers[inst.rs()];
+    int32_t denom = (int32_t)registers[inst.rt()];
+    if (denom == 0) {
+        hi = (uint32_t)num;
+        if (num >= 0) {
+            lo = 0xFFFFFFFF;
+        } else {
+            lo = 1;
+        }
+    } else if (num == INT32_MIN && denom == -1) {
+        lo = 0x80000000;
+        hi = 0;
+    } else {
+        lo = (uint32_t)(num / denom);
+        hi = (uint32_t)(num % denom);   
+    }
+    ExecutePendingLoad();
+    registers[0] = 0;
+}
+
+void CPU::divu(const Instruction& inst) {
+    uint32_t num = registers[inst.rs()];
+    uint32_t denom = registers[inst.rt()];
+    if (denom == 0) {
+        hi = num;
+        lo = 0xFFFFFFFF;
+    } else {
+        lo = (uint32_t)(num / denom);
+        hi = (uint32_t)(num % denom);
+    }
+    ExecutePendingLoad();
+    registers[0] = 0;
 }
 
 void CPU::add(const Instruction& inst) {
@@ -183,6 +317,28 @@ void CPU::addu(const Instruction& inst) {
     registers[inst.rd()] = result;
     registers[0] = 0;
 }
+
+void CPU::sub(const Instruction& inst) {
+    int32_t rs = (int32_t)registers[inst.rs()];
+    int32_t rt = (int32_t)registers[inst.rt()];
+    int32_t result = rs - rt;
+    if ((result < rs) != (rt > 0)) {
+        printf("Overflow\n");
+        assert(false);
+    }
+    ExecutePendingLoad();
+    registers[inst.rd()] = result;
+    registers[0] = 0;
+}
+
+
+void CPU::subu(const Instruction& inst) {
+    uint32_t result = registers[inst.rs()] - registers[inst.rt()];
+    ExecutePendingLoad();
+    registers[inst.rd()] = result;
+    registers[0] = 0;
+}
+
 
 void CPU::and_(const Instruction& inst) {
     uint32_t result = registers[inst.rt()] & registers[inst.rs()];
@@ -212,10 +368,20 @@ void CPU::nor(const Instruction& inst) {
     registers[0] = 0;
 }
 
+void CPU::slt(const Instruction& inst) {
+    int32_t rs = (int32_t)registers[inst.rs()];
+    int32_t rt = (int32_t)registers[inst.rt()];
+    bool result = rs < rt;
+    ExecutePendingLoad();
+    registers[inst.rd()] = result ? 1 : 0;
+    registers[0] = 0;
+}
+
 void CPU::sltu(const Instruction& inst) {
     bool result = registers[inst.rs()] < registers[inst.rt()];
     ExecutePendingLoad();
     registers[inst.rd()] = result ? 1 : 0;
+    registers[0] = 0;
 }
 
 void CPU::j(const Instruction& inst) {
@@ -245,6 +411,22 @@ void CPU::beq(const Instruction& inst) {
     }
 }
 
+void CPU::blez(const Instruction& inst) {
+    bool result = (int32_t)registers[inst.rs()] <= 0;
+    ExecutePendingLoad();
+    if (result) {
+        Branch((int32_t)((int16_t)inst.imm16()));
+    }
+}
+
+void CPU::bgtz(const Instruction& inst) {
+    bool result = (int32_t)registers[inst.rs()] > 0;
+    ExecutePendingLoad();
+    if (result) {
+        Branch((int32_t)((int16_t)inst.imm16()));
+    }
+}
+
 void CPU::addi(const Instruction& inst) {
     int32_t rs = (int32_t)registers[inst.rs()];
     int32_t imm16 = (int32_t)((int16_t)inst.imm16());
@@ -263,6 +445,22 @@ void CPU::addiu(const Instruction& inst) {
     uint32_t result = registers[inst.rs()] + imm;
     ExecutePendingLoad();
     registers[inst.rt()] = result;
+    registers[0] = 0;
+}
+
+void CPU::slti(const Instruction& inst) {
+    bool result = (int32_t)registers[inst.rs()] < (int32_t)((int16_t)inst.imm16());
+    ExecutePendingLoad();
+    registers[inst.rt()] = result ? 1 : 0;
+    registers[0] = 0;
+}
+
+void CPU::sltiu(const Instruction& inst) {
+    uint32_t rs = registers[inst.rs()];
+    uint32_t imm = (uint32_t)((int32_t)((int16_t)inst.imm16()));
+    bool result = rs < imm;
+    ExecutePendingLoad();
+    registers[inst.rt()] = result ? 1 : 0;
     registers[0] = 0;
 }
 
@@ -346,6 +544,32 @@ void CPU::lw(const Instruction& inst) {
     pending_reg = rt;
     is_pending_load = true;
     pending_load_data = system->Read32(address);
+}
+
+void CPU::lbu(const Instruction& inst) {
+    if (COP0.status_register.status_flags.isolate_cache != 0) {
+        ExecutePendingLoad();
+        return;
+    }
+    uint32_t address = registers[inst.rs()] + (int32_t)((int16_t)inst.imm16());
+    uint32_t rt = inst.rt();
+    ExecutePendingLoad();
+    pending_reg = rt;
+    is_pending_load = true;
+    pending_load_data = (uint32_t)((uint8_t)system->Read8(address));
+}
+
+void CPU::lhu(const Instruction& inst) {
+    if (COP0.status_register.status_flags.isolate_cache != 0) {
+        ExecutePendingLoad();
+        return;
+    }
+    uint32_t address = registers[inst.rs()] + (int32_t)((int16_t)inst.imm16());
+    uint32_t rt = inst.rt();
+    ExecutePendingLoad();
+    pending_reg = rt;
+    is_pending_load = true;
+    pending_load_data = (uint32_t)((uint16_t)system->Read16(address));
 }
 
 void CPU::sb(const Instruction& inst) {
