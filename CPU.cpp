@@ -16,7 +16,6 @@ CPU::CPU(PSX* system) : system(system), next_inst(0) {
 }
 
 void CPU::RunInstruction() {
-    uint32_t pc = PC;
     current_PC = PC;
     if (current_PC & 0x03) {
         HandleException(Exceptions::AddrErrorLoad);
@@ -31,11 +30,6 @@ void CPU::RunInstruction() {
 }
 
 void CPU::DecodeAndExecute(uint32_t instruction) {
-    /*current_PC = PC;
-    if (current_PC & 0x03) {
-        HandleException(Exceptions::AddrErrorLoad);
-        return;
-    }*/
     Instruction inst(instruction);
     switch (inst.opcode() & 0x3Fu) {
         case 0x00:
@@ -51,6 +45,9 @@ void CPU::DecodeAndExecute(uint32_t instruction) {
                     break;
                 case 0x04:
                     sllv(inst);
+                    break;
+                case 0x06:
+                    srlv(inst);
                     break;
                 case 0x07:
                     srav(inst);
@@ -214,7 +211,8 @@ void CPU::Branch(int imm) {
     pc += imm;
     // Compensate for the hardcoded add of 4
     pc -= 4;
-    next_PC = pc;
+    //next_PC = pc;
+    next_PC = PC + imm;
 }
 
 void CPU::HandleCop0(const Instruction& inst) {
@@ -245,12 +243,16 @@ void CPU::HandleException(const Exceptions& cause) {
     uint32_t mode = COP0.status_register.reg & 0x3F;
     COP0.status_register.reg &= ~0x3F;
     COP0.status_register.reg |= ((mode << 2) & 0x3F);
+    COP0.cause_register.reg &= ~0x7C;
     COP0.cause_register.reg = ((uint32_t)cause << 2);
     COP0.epc = current_PC;
 
     if (delay_slot) {
         COP0.epc -= 4;
         COP0.cause_register.reg |= (1 << 31);
+    }
+    else {
+        COP0.cause_register.reg &= ~(1 << 31);
     }
 
     PC = handler;
@@ -273,10 +275,10 @@ void CPU::branches(const Instruction& inst) {
         result = rs >= 0;
     }
     ExecutePendingLoad();
+    if (link) {
+        registers[31] = PC;
+    }
     if (result) {
-        if (link) {
-            registers[31] = PC;
-        }
         Branch((int32_t)((int16_t)inst.imm16()));
     }
 }
@@ -312,7 +314,9 @@ void CPU::srlv(const Instruction& inst) {
 }
 
 void CPU::srav(const Instruction& inst) {
-    int32_t result = (int32_t)registers[inst.rt()] >> (registers[inst.rs()] & 0x1F);
+    int32_t rt = (int32_t)registers[inst.rt()];
+    int32_t shamt = (registers[inst.rs()] & 0x1F);
+    int32_t result = rt >> shamt;
     ExecutePendingLoad();
     registers[inst.rd()] = (uint32_t)result;
     registers[0] = 0;
@@ -327,9 +331,10 @@ void CPU::jr(const Instruction& inst) {
 
 void CPU::jalr(const Instruction& inst) {
     uint32_t address = registers[inst.rs()];
-    ExecutePendingLoad();
-    registers[inst.rd()] = PC;
+    uint32_t ra = next_PC;
     next_PC = address;
+    ExecutePendingLoad();
+    registers[inst.rd()] = ra;
     branch = true;
 }
 
@@ -491,7 +496,7 @@ void CPU::j(const Instruction& inst) {
 
 void CPU::jal(const Instruction& inst) {
     ExecutePendingLoad();
-    registers[31] = PC;
+    registers[31] = next_PC;
     next_PC = (PC & 0xF0000000) | (inst.addr() << 2);
     branch = true;
 }

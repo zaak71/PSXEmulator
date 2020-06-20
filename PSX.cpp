@@ -111,6 +111,9 @@ void PSX::Write32(uint32_t address, const uint32_t data) {
     } else if (address >= CACHE_CONTROL_START
         && address + 4 <= CACHE_CONTROL_START + CACHE_CONTROL_SIZE) {
         printf("Write to Cache Control\n");
+    } else if (address >= EXPANSION2_START
+        && address + 4 <= EXPANSION2_START + EXPANSION2_SIZE) {
+        printf("Write to Expansion 2\n");
     } else if (address >= IRQ_START
         && address + 4 <= IRQ_START + IRQ_SIZE) {
         sys_irq->Write32(address - IRQ_START, data);
@@ -153,9 +156,11 @@ void PSX::Write16(uint32_t address, const uint16_t data) {
     } else if (address >= TIMER_START
         && address + 2 <= TIMER_START + TIMER_SIZE) {
         printf("Write to Timers\n");
+    } else if (address >= EXPANSION2_START
+        && address + 4 <= EXPANSION2_START + EXPANSION2_SIZE) {
+        printf("Write to Expansion 2\n");
     } else {
         printf("Unhandled write of size 16 at address %08x\n", address);
-        
     }
 }
 
@@ -177,6 +182,9 @@ void PSX::Write8(uint32_t address, const uint8_t data) {
     } else if (address >= CACHE_CONTROL_START
         && address + 1 <= CACHE_CONTROL_START + CACHE_CONTROL_SIZE) {
         printf("Write to Cache Control\n");
+    } else if (address >= EXPANSION2_START
+        && address + 4 <= EXPANSION2_START + EXPANSION2_SIZE) {
+        printf("Write to Expansion 2\n");
     } else {
         printf("Unhandled write of size 8 at address %08x\n", address);
     }

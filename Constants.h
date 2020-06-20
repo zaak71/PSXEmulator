@@ -47,3 +47,6 @@
 
 #define SPU_START               0x1F801C00
 #define SPU_SIZE                0x280
+
+#define EXPANSION2_START        0x1F802000
+#define EXPANSION2_SIZE         0x80
