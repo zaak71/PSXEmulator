@@ -45,7 +45,7 @@ public:
             uint32_t cm : 1;
             uint32_t pe : 1;
             uint32_t ts : 1;
-            uint32_t bez : 1;
+            uint32_t boot_exception_vector : 1;
             uint32_t _23_27 : 5;
             uint32_t cop0_enable : 1;                   // 0=Only Kernel Mode, 1=Kernel+User
             uint32_t cop1_enable : 1;

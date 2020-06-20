@@ -141,6 +141,7 @@
   <ItemGroup>
     <ClCompile Include="bios.cpp" />
     <ClCompile Include="cop0.cpp" />
+    <ClCompile Include="DMA.cpp" />
     <ClCompile Include="IRQ.cpp" />
     <ClCompile Include="PSX.cpp" />
     <ClCompile Include="CPU.cpp" />
@@ -151,6 +152,7 @@
   <ItemGroup>
     <ClInclude Include="bios.h" />
     <ClInclude Include="cop0.h" />
+    <ClInclude Include="DMA.h" />
     <ClInclude Include="instruction.h" />
     <ClInclude Include="IRQ.h" />
     <ClInclude Include="PSX.h" />

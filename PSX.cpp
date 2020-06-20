@@ -9,6 +9,7 @@ PSX::PSX() {
     sys_ram = std::make_unique<RAM>();
     sys_spu = std::make_unique<SPU>();
     sys_irq = std::make_unique<IRQ>();
+    sys_dma = std::make_unique<DMA>();
     sys_bios->LoadBios("bios/SCPH1001.BIN");
 }
 
@@ -48,6 +49,9 @@ uint16_t PSX::Read16(uint32_t address) const {
     } else if (address >= BIOS_START_ADDRESS
         && address + 2 <= BIOS_START_ADDRESS + BIOS_SIZE) {
         return sys_bios->Read<uint16_t>(address - BIOS_START_ADDRESS);
+    } else if (address >= SPU_START
+        && address + 2 <= SPU_START + SPU_SIZE) {
+        return sys_spu->Read16(address);
     } else {
         printf("Unhandled memory access of size 16 at address %08x\n", address);
         assert(false);
@@ -71,6 +75,9 @@ uint32_t PSX::Read32(uint32_t address) const {
     } else if (address >= IRQ_START
         && address + 4 <= IRQ_START + IRQ_SIZE) {
         return sys_irq->Read32(address - IRQ_START);
+    } else if (address >= DMA_START
+        && address + 4 <= DMA_START + DMA_SIZE) {
+        return sys_dma->Read32(address);
     } else {
         printf("Unhandled memory access of size 32 at address %08x\n", address);
         assert(false);
@@ -103,6 +110,9 @@ void PSX::Write32(uint32_t address, const uint32_t data) {
     } else if (address >= IRQ_START
         && address + 4 <= IRQ_START + IRQ_SIZE) {
         sys_irq->Write32(address - IRQ_START, data);
+    } else if (address >= DMA_START
+        && address + 4 <= DMA_START + DMA_SIZE) {
+        sys_dma->Write32(address, data);
     } else {
         printf("Unhandled write of size 32 at address %08x\n", address);
     }

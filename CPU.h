@@ -15,9 +15,11 @@ private:
     cop0 COP0;
 
     uint32_t registers[32];
-    uint32_t PC, hi, lo;
+    uint32_t PC, next_PC, hi, lo;
+    uint32_t current_PC;
 
     uint32_t next_inst;
+    bool branch, delay_slot;
 
     bool is_pending_load;
     uint32_t pending_reg, pending_load_data;
@@ -28,14 +30,34 @@ private:
 
     void HandleCop0(const Instruction& inst);
 
+    enum class Exceptions : uint32_t {
+        Int = 0,            // Interrupt (Hardware)
+        AddrErrorLoad = 4,  // Address Error (load or inst. fetch)
+        AddrErrorStore = 5, // Address Error (store)
+        IBE = 6,            // Bus Error (inst. fetch)
+        DBE = 7,            // Bus Error (load or store)
+        Syscall = 8,        // Syscall Exception
+        Bp = 9,             // Breakpoint Exception
+        RI = 10,            // Reserved Instruction Exception
+        CpU = 11,           // Coprocessor Unimplemented
+        Overflow = 12,      // Arithmetic Overflow
+        Tr = 13,            // Trap
+        FPE = 15            // Floating Point Exception
+    };
+
+    void HandleException(const Exceptions& inst);
+
     void sll(const Instruction& inst);
     void branches(const Instruction& inst);
     void srl(const Instruction& inst);
     void sra(const Instruction& inst);
     void jr(const Instruction& inst);
     void jalr(const Instruction& inst);
+    void syscall(const Instruction& inst);
     void mflo(const Instruction& inst);
+    void mtlo(const Instruction& inst);
     void mfhi(const Instruction& inst);
+    void mthi(const Instruction& inst);
     void div(const Instruction& inst);
     void divu(const Instruction& inst);
     void add(const Instruction& inst);
@@ -65,6 +87,7 @@ private:
     void lui(const Instruction& inst);
     void mfc0(const Instruction& inst);
     void mtc0(const Instruction& inst);
+    void rfe(const Instruction& inst);
     void lb(const Instruction& inst);
     void lh(const Instruction& inst);
     void lw(const Instruction& inst);

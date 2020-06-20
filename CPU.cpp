@@ -4,6 +4,7 @@
 
 CPU::CPU(PSX* system) : system(system), next_inst(0) {
     PC = 0xBFC00000;
+    next_PC = PC + 4;
     for (uint32_t& i : registers) {
         i = 0xDEADBEEF;
     }
@@ -11,17 +12,24 @@ CPU::CPU(PSX* system) : system(system), next_inst(0) {
     hi = lo = 0;
     pending_reg = pending_load_data = 0;
     is_pending_load = false;
+    delay_slot = branch = false;
 }
 
 void CPU::RunInstruction() {
     uint32_t pc = PC;
-    uint32_t inst = next_inst;
-    next_inst = system->Read32(pc);
-    PC += 4;
+    uint32_t inst = system->Read32(PC);
+    PC = next_PC;
+    next_PC += 4;
+    delay_slot = branch;
+    branch = false;
     DecodeAndExecute(inst);
 }
 
 void CPU::DecodeAndExecute(uint32_t instruction) {
+    current_PC = PC;
+    if (current_PC & 0x03) {
+        HandleException(Exceptions::AddrErrorLoad);
+    }
     Instruction inst(instruction);
     switch (inst.opcode() & 0x3Fu) {
         case 0x00:
@@ -41,11 +49,20 @@ void CPU::DecodeAndExecute(uint32_t instruction) {
                 case 0x09:
                     jalr(inst);
                     break;
+                case 0x0C:
+                    syscall(inst);
+                    break;
                 case 0x10:
                     mfhi(inst);
                     break;
+                case 0x11:
+                    mthi(inst);
+                    break;
                 case 0x12:
                     mflo(inst);
+                    break;
+                case 0x13:
+                    mtlo(inst);
                     break;
                 case 0x1A:
                     div(inst);
@@ -179,12 +196,13 @@ void CPU::ExecutePendingLoad() {
 }
 
 void CPU::Branch(int imm) {
+    branch = true;
     imm = imm << 2;
-    uint32_t pc = PC;
+    uint32_t pc = next_PC;
     pc += imm;
     // Compensate for the hardcoded add of 4
     pc -= 4;
-    PC = pc;
+    next_PC = pc;
 }
 
 void CPU::HandleCop0(const Instruction& inst) {
@@ -195,11 +213,36 @@ void CPU::HandleCop0(const Instruction& inst) {
         case 0x04:
             mtc0(inst);
             break;
+        case 0x10:
+            if ((inst.funct() & 0x3F) == 0x10) {
+                rfe(inst);
+            } else {
+                printf("Unhandled COP0 instruction: %08x\n", inst.inst);
+                assert(false);
+            }
+            break;
         default:
             printf("Unhandled COP0 instruction: %08x\n", inst.inst);
             assert(false);
             break;
     }
+}
+
+void CPU::HandleException(const Exceptions& cause) {
+    uint32_t handler = COP0.status_register.status_flags.boot_exception_vector ? 0xBFC00180 : 0x80000080;
+    uint32_t mode = COP0.status_register.reg & 0x3F;
+    COP0.status_register.reg &= ~0x3F;
+    COP0.status_register.reg |= (mode << 2) & 0x3F;
+    COP0.cause_register.reg = ((uint32_t)cause << 2);
+    COP0.epc = current_PC;
+
+    if (delay_slot) {
+        COP0.epc -= 4;
+        COP0.cause_register.reg |= (1 << 31);
+    }
+
+    PC = handler;
+    next_PC = PC + 4;
 }
 
 void CPU::sll(const Instruction& inst) {
@@ -211,7 +254,7 @@ void CPU::sll(const Instruction& inst) {
 
 void CPU::branches(const Instruction& inst) {
     bool bgez = inst.inst >> 16 & 0x01;
-    bool link = inst.inst >> 20 & 0x01 != 0;
+    bool link = (inst.inst >> 20 & 0x01) != 0;
     bool result = (int32_t)registers[inst.rs()] < 0;
     if (bgez) {
         result = (int32_t)registers[inst.rs()] >= 0;
@@ -242,19 +285,39 @@ void CPU::sra(const Instruction& inst) {
 void CPU::jr(const Instruction& inst) {
     uint32_t address = registers[inst.rs()];
     ExecutePendingLoad();
-    PC = address;
+    next_PC = address;
+    branch = true;
 }
 
 void CPU::jalr(const Instruction& inst) {
     uint32_t address = registers[inst.rs()];
     ExecutePendingLoad();
     registers[inst.rd()] = PC;
-    PC = address;
+    next_PC = address;
+    branch = true;
 }
+
+void CPU::syscall(const Instruction& inst) {
+    ExecutePendingLoad();
+    HandleException(Exceptions::Syscall);
+}
+
+void CPU::mthi(const Instruction& inst) {
+    uint32_t data = registers[inst.rs()];
+    ExecutePendingLoad();
+    hi = data;
+}
+
 
 void CPU::mfhi(const Instruction& inst) {
     ExecutePendingLoad();
     registers[inst.rd()] = hi;
+}
+
+void CPU::mtlo(const Instruction& inst) {
+    uint32_t data = registers[inst.rs()];
+    ExecutePendingLoad();
+    lo = data;
 }
 
 void CPU::mflo(const Instruction& inst) {
@@ -302,11 +365,11 @@ void CPU::add(const Instruction& inst) {
     int32_t rs = (int32_t)registers[inst.rs()];
     int32_t rt = (int32_t)registers[inst.rt()];
     int32_t result = rs + rt;
-    if ((rs >= 0 && rt > INT32_MAX - rs) || (rs < 0 && rt < (INT32_MIN - rs))) {
-        printf("Overflow\n");
-        assert(false);
-    }
     ExecutePendingLoad();
+    if ((rs >= 0 && rt > INT32_MAX - rs) || (rs < 0 && rt < (INT32_MIN - rs))) {
+        HandleException(Exceptions::Overflow);
+        return;
+    }
     registers[inst.rd()] = result;
     registers[0] = 0;
 }
@@ -322,11 +385,11 @@ void CPU::sub(const Instruction& inst) {
     int32_t rs = (int32_t)registers[inst.rs()];
     int32_t rt = (int32_t)registers[inst.rt()];
     int32_t result = rs - rt;
-    if ((result < rs) != (rt > 0)) {
-        printf("Overflow\n");
-        assert(false);
-    }
     ExecutePendingLoad();
+    if ((result < rs) != (rt > 0)) {
+        HandleException(Exceptions::Overflow);
+        return;
+    }
     registers[inst.rd()] = result;
     registers[0] = 0;
 }
@@ -386,13 +449,15 @@ void CPU::sltu(const Instruction& inst) {
 
 void CPU::j(const Instruction& inst) {
     ExecutePendingLoad();
-    PC = (PC & 0xF0000000) | (inst.addr() << 2);
+    next_PC = (PC & 0xF0000000) | (inst.addr() << 2);
+    branch = true;
 }
 
 void CPU::jal(const Instruction& inst) {
     ExecutePendingLoad();
     registers[31] = PC;
-    PC = (PC & 0xF0000000) | (inst.addr() << 2);
+    next_PC = (PC & 0xF0000000) | (inst.addr() << 2);
+    branch = true;
 }
 
 void CPU::bne(const Instruction& inst) {
@@ -431,11 +496,11 @@ void CPU::addi(const Instruction& inst) {
     int32_t rs = (int32_t)registers[inst.rs()];
     int32_t imm16 = (int32_t)((int16_t)inst.imm16());
     int32_t sum = rs + imm16;
-    if ((rs >= 0 && imm16 > INT32_MAX - rs) || (rs < 0 && imm16 < (INT32_MIN - rs))) {
-        printf("Overflow\n");
-        assert(false);
-    }
     ExecutePendingLoad();
+    if ((rs >= 0 && imm16 > INT32_MAX - rs) || (rs < 0 && imm16 < (INT32_MIN - rs))) {
+        HandleException(Exceptions::Overflow);
+        return;
+    }
     registers[inst.rt()] = (uint32_t)sum;
     registers[0] = 0;
 }
@@ -507,6 +572,13 @@ void CPU::mtc0(const Instruction& inst) {
     COP0.Write(inst.rd(), data);
 }
 
+void CPU::rfe(const Instruction& inst) {
+    ExecutePendingLoad();
+    uint32_t mode = COP0.status_register.reg & 0x3F;
+    COP0.status_register.reg &= ~(0x3F);
+    COP0.status_register.reg |= (mode >> 2);
+}
+
 void CPU::lb(const Instruction& inst) {
     if (COP0.status_register.status_flags.isolate_cache != 0) {
         ExecutePendingLoad();
@@ -528,6 +600,10 @@ void CPU::lh(const Instruction& inst) {
     uint32_t address = registers[inst.rs()] + (int32_t)((int16_t)inst.imm16());
     uint32_t rt = inst.rt();
     ExecutePendingLoad();
+    if (address & 0x01) {
+        HandleException(Exceptions::AddrErrorLoad);
+        return;
+    }
     pending_reg = rt;
     is_pending_load = true;
     pending_load_data = (int32_t)((int16_t)system->Read16(address));;
@@ -541,6 +617,10 @@ void CPU::lw(const Instruction& inst) {
     uint32_t address = registers[inst.rs()] + (int32_t)((int16_t)inst.imm16());
     uint32_t rt = inst.rt();
     ExecutePendingLoad();
+    if (address & 0x03) {
+        HandleException(Exceptions::AddrErrorLoad);
+        return;
+    }
     pending_reg = rt;
     is_pending_load = true;
     pending_load_data = system->Read32(address);
@@ -567,6 +647,10 @@ void CPU::lhu(const Instruction& inst) {
     uint32_t address = registers[inst.rs()] + (int32_t)((int16_t)inst.imm16());
     uint32_t rt = inst.rt();
     ExecutePendingLoad();
+    if (address & 0x01) {
+        HandleException(Exceptions::AddrErrorLoad);
+        return;
+    }
     pending_reg = rt;
     is_pending_load = true;
     pending_load_data = (uint32_t)((uint16_t)system->Read16(address));
@@ -591,6 +675,10 @@ void CPU::sh(const Instruction& inst) {
     uint32_t address = registers[inst.rs()] + (int32_t)((int16_t)inst.imm16());
     uint32_t data = registers[inst.rt()];
     ExecutePendingLoad();
+    if (address & 0x01) {
+        HandleException(Exceptions::AddrErrorStore);
+        return;
+    }
     system->Write16(address, data);
 }
 
@@ -601,6 +689,10 @@ void CPU::sw(const Instruction& inst) {
     }
     uint32_t address = registers[inst.rs()] + (int32_t)((int16_t)inst.imm16());
     uint32_t data = registers[inst.rt()];
+    if (address & 0x03) {
+        HandleException(Exceptions::AddrErrorStore);
+        return;
+    }
     ExecutePendingLoad();
     system->Write32(address, data);
 }
