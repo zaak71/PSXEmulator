@@ -4,6 +4,7 @@
 
 class SPU {
 public:
+    SPU();
     void Write16(uint32_t address, uint16_t data);
     uint16_t Read16(uint32_t address) const;
 private:
@@ -11,6 +12,10 @@ private:
     uint16_t main_volume_r = 0;
     uint16_t vLOUT = 0;
     uint16_t vROUT = 0;
+    uint16_t mBASE = 0;
+    uint16_t reverb_regs[32];
+
+    void ModifyReverbReg(uint32_t reg, uint16_t data);
 
     union SPUControl {  // 0x1F801DAA
         uint16_t reg = 0;
@@ -95,7 +100,7 @@ private:
     } CD_input_volume, external_input_volume;
 
     union SRAMDataTransferControl {
-        uint16_t reg;
+        uint16_t reg = 0;
         struct {
             uint16_t : 1;
             uint16_t sram_data_transfer_type : 3;
@@ -118,5 +123,6 @@ private:
     };
     Voice voices[24];
     void HandleVoiceWrite(uint16_t offset, uint16_t voice, uint16_t data);
+    uint16_t ReadVoice(uint16_t offset, uint16_t voice) const;
 };
 

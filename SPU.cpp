@@ -4,13 +4,23 @@
 #include <cstdio>
 #include <cassert>
 
+SPU::SPU() {
+	for (int i = 0; i < 32; i++) {
+		reverb_regs[i] = 0;
+	}
+}
+
 void SPU::Write16(uint32_t address, uint16_t data) {
-	uint32_t lsbs = address & 0x00000FFF;
+	uint32_t lsbs = address & 0x00000FFF;	// get least sig 3 bits
 	if (lsbs >= 0xC00 && lsbs + 2 <= 0xD80) {
 		HandleVoiceWrite(address & 0x0F, lsbs / 0x10, data);
 		return;
+	} else if (lsbs >= 0xDC0 && lsbs + 2 <= 0xE00) {
+		uint32_t reg = (lsbs - 0xDC0) / 0x2;
+		reverb_regs[reg] = data;
+		return;
 	}
-	switch (address & 0x00000FFF) {
+	switch (lsbs) {
 		case 0xD80:
 			main_volume_l = data;
 			break;
@@ -53,6 +63,9 @@ void SPU::Write16(uint32_t address, uint16_t data) {
 		case 0xD9A:
 			EON.halves[1] = data;
 			break;
+		case 0xDA2:
+			mBASE = data;
+			break;
 		case 0xDA6:
 			sram_data_transfer_address = data;
 			break;
@@ -85,7 +98,11 @@ void SPU::Write16(uint32_t address, uint16_t data) {
 }
 
 uint16_t SPU::Read16(uint32_t address) const {
-	switch (address & 0x00000FFF) {
+	uint32_t lsbs = address & 0x00000FFF;	// get 3 least sig bits
+	if (lsbs >= 0xC00 && lsbs + 2 <= 0xD80) {
+		return ReadVoice(address & 0x0F, lsbs / 0x10);
+	}
+	switch (lsbs) {
 		case 0xD88:
 			return key_on.halves[0];
 			break;
@@ -145,5 +162,39 @@ void SPU::HandleVoiceWrite(uint16_t offset, uint16_t voice, uint16_t data) {
 			printf("Unhandled write to SPU at offset %08x\n", offset);
 			assert(false);
 			break;
+	}
+}
+
+uint16_t SPU::ReadVoice(uint16_t offset, uint16_t voice) const {
+	switch (offset) {
+	case 0:
+		return voices[voice].volume_left;
+		break;
+	case 2:
+		return voices[voice].volume_left;
+		break;
+	case 4:
+		return voices[voice].adpcm_sample_rate;
+		break;
+	case 6:
+		return voices[voice].adpcm_start_addr;
+		break;
+	case 8:
+		return voices[voice].adsr_lower;
+		break;
+	case 10:
+		return voices[voice].adsr_upper;
+		break;
+	case 12:
+		return voices[voice].adsr_curr_vol;
+		break;
+	case 14:
+		return voices[voice].adpcm_repeat_addr;
+		break;
+	default:
+		printf("Unhandled read from SPU at offset %08x\n", offset);
+		assert(false);
+		return 0;
+		break;
 	}
 }

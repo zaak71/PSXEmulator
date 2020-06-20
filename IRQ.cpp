@@ -15,7 +15,7 @@ void IRQ::Write32(uint32_t offset, uint32_t data) {
 	}
 }
 
-uint32_t IRQ::Read32(uint32_t offset) {
+uint32_t IRQ::Read32(uint32_t offset) const {
 	switch (offset) {
 	case 0:
 		return i_stat;

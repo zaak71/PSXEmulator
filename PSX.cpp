@@ -54,7 +54,7 @@ uint16_t PSX::Read16(uint32_t address) const {
         return sys_spu->Read16(address);
     } else {
         printf("Unhandled memory access of size 16 at address %08x\n", address);
-        assert(false);
+        //assert(false);
         return 0;
     }
 }
@@ -78,6 +78,10 @@ uint32_t PSX::Read32(uint32_t address) const {
     } else if (address >= DMA_START
         && address + 4 <= DMA_START + DMA_SIZE) {
         return sys_dma->Read32(address);
+    } else if (address >= GPU_START
+        && address + 4 <= GPU_START + GPU_SIZE) {
+        printf("Access to GPU at address %08x\n", address);
+        return 0x10000000;
     } else {
         printf("Unhandled memory access of size 32 at address %08x\n", address);
         assert(false);
@@ -97,7 +101,7 @@ void PSX::Write32(uint32_t address, const uint32_t data) {
         sys_ram->Write(address - RAM_START_ADDRESS, data);
     } else if (address >= BIOS_START_ADDRESS 
         && address + 4 <= BIOS_START_ADDRESS + BIOS_SIZE) {
-        printf("Write to BIOS\n");
+        sys_bios->Write(address - BIOS_START_ADDRESS, data);
     } else if (address >= MEM_CONTROL_1_START 
         && address + 4 <= MEM_CONTROL_1_START + MEM_CONTROL_1_SIZE) {
         printf("Write to Memory Control 1\n");
@@ -115,6 +119,9 @@ void PSX::Write32(uint32_t address, const uint32_t data) {
         sys_dma->Write32(address, data);
     } else {
         printf("Unhandled write of size 32 at address %08x\n", address);
+        if (address == 0xFFFD8644) {
+            printf("no\n");
+        }
     }
 }
 
@@ -130,7 +137,7 @@ void PSX::Write16(uint32_t address, const uint16_t data) {
         sys_ram->Write(address - RAM_START_ADDRESS, data);
     } else if (address >= BIOS_START_ADDRESS 
         && address + 2 <= BIOS_START_ADDRESS + BIOS_SIZE) {
-        printf("Write to BIOS\n");
+        sys_bios->Write(address - BIOS_START_ADDRESS, data);
     } else if (address >= SPU_START
         && address + 2 <= SPU_START + SPU_SIZE) {
         sys_spu->Write16(address, data);
@@ -148,6 +155,7 @@ void PSX::Write16(uint32_t address, const uint16_t data) {
         printf("Write to Timers\n");
     } else {
         printf("Unhandled write of size 16 at address %08x\n", address);
+        
     }
 }
 
@@ -159,7 +167,7 @@ void PSX::Write8(uint32_t address, const uint8_t data) {
         sys_ram->Write(address - RAM_START_ADDRESS, data);
     } else if (address >= BIOS_START_ADDRESS 
         && address + 1 <= BIOS_START_ADDRESS + BIOS_SIZE) {
-        printf("Write to BIOS\n");
+        sys_bios->Write(address - BIOS_START_ADDRESS, data);
     } else if (address >= MEM_CONTROL_1_START
         && address + 1 <= MEM_CONTROL_1_START + MEM_CONTROL_1_SIZE) {
         printf("Write to Memory Control 1\n");

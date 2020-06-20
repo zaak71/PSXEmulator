@@ -17,6 +17,11 @@ CPU::CPU(PSX* system) : system(system), next_inst(0) {
 
 void CPU::RunInstruction() {
     uint32_t pc = PC;
+    current_PC = PC;
+    if (current_PC & 0x03) {
+        HandleException(Exceptions::AddrErrorLoad);
+        return;
+    }
     uint32_t inst = system->Read32(PC);
     PC = next_PC;
     next_PC += 4;
@@ -26,10 +31,11 @@ void CPU::RunInstruction() {
 }
 
 void CPU::DecodeAndExecute(uint32_t instruction) {
-    current_PC = PC;
+    /*current_PC = PC;
     if (current_PC & 0x03) {
         HandleException(Exceptions::AddrErrorLoad);
-    }
+        return;
+    }*/
     Instruction inst(instruction);
     switch (inst.opcode() & 0x3Fu) {
         case 0x00:
@@ -42,6 +48,12 @@ void CPU::DecodeAndExecute(uint32_t instruction) {
                     break;
                 case 0x03:
                     sra(inst);
+                    break;
+                case 0x04:
+                    sllv(inst);
+                    break;
+                case 0x07:
+                    srav(inst);
                     break;
                 case 0x08:
                     jr(inst);
@@ -232,7 +244,7 @@ void CPU::HandleException(const Exceptions& cause) {
     uint32_t handler = COP0.status_register.status_flags.boot_exception_vector ? 0xBFC00180 : 0x80000080;
     uint32_t mode = COP0.status_register.reg & 0x3F;
     COP0.status_register.reg &= ~0x3F;
-    COP0.status_register.reg |= (mode << 2) & 0x3F;
+    COP0.status_register.reg |= ((mode << 2) & 0x3F);
     COP0.cause_register.reg = ((uint32_t)cause << 2);
     COP0.epc = current_PC;
 
@@ -255,9 +267,10 @@ void CPU::sll(const Instruction& inst) {
 void CPU::branches(const Instruction& inst) {
     bool bgez = inst.inst >> 16 & 0x01;
     bool link = (inst.inst >> 20 & 0x01) != 0;
-    bool result = (int32_t)registers[inst.rs()] < 0;
+    int32_t rs = (int32_t)registers[inst.rs()];
+    bool result = rs < 0;
     if (bgez) {
-        result = (int32_t)registers[inst.rs()] >= 0;
+        result = rs >= 0;
     }
     ExecutePendingLoad();
     if (result) {
@@ -279,6 +292,29 @@ void CPU::sra(const Instruction& inst) {
     uint32_t result = (int32_t)registers[inst.rt()] >> inst.shamt();
     ExecutePendingLoad();
     registers[inst.rd()] = result;
+    registers[0] = 0;
+}
+
+void CPU::sllv(const Instruction& inst) {
+    uint32_t rt = registers[inst.rt()];
+    uint32_t shamt = (registers[inst.rs()] & 0x1F);
+    uint32_t result = rt << shamt;
+    ExecutePendingLoad();
+    registers[inst.rd()] = result;
+    registers[0] = 0;
+}
+
+void CPU::srlv(const Instruction& inst) {
+    uint32_t result = registers[inst.rt()] >> (registers[inst.rs()] & 0x1F);
+    ExecutePendingLoad();
+    registers[inst.rd()] = result;
+    registers[0] = 0;
+}
+
+void CPU::srav(const Instruction& inst) {
+    int32_t result = (int32_t)registers[inst.rt()] >> (registers[inst.rs()] & 0x1F);
+    ExecutePendingLoad();
+    registers[inst.rd()] = (uint32_t)result;
     registers[0] = 0;
 }
 
@@ -672,7 +708,9 @@ void CPU::sh(const Instruction& inst) {
         ExecutePendingLoad();
         return;
     }
-    uint32_t address = registers[inst.rs()] + (int32_t)((int16_t)inst.imm16());
+    uint32_t rs = registers[inst.rs()];
+    uint32_t imm16 = (int32_t)((int16_t)inst.imm16());
+    uint32_t address = rs + imm16;
     uint32_t data = registers[inst.rt()];
     ExecutePendingLoad();
     if (address & 0x01) {

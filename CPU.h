@@ -51,6 +51,9 @@ private:
     void branches(const Instruction& inst);
     void srl(const Instruction& inst);
     void sra(const Instruction& inst);
+    void sllv(const Instruction& inst);
+    void srlv(const Instruction& inst);
+    void srav(const Instruction& inst);
     void jr(const Instruction& inst);
     void jalr(const Instruction& inst);
     void syscall(const Instruction& inst);
