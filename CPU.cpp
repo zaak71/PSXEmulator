@@ -61,6 +61,9 @@ void CPU::DecodeAndExecute(uint32_t instruction) {
                 case 0x0C:
                     syscall(inst);
                     break;
+                case 0x0D:
+                    break_(inst);
+                    break;
                 case 0x10:
                     mfhi(inst);
                     break;
@@ -72,6 +75,12 @@ void CPU::DecodeAndExecute(uint32_t instruction) {
                     break;
                 case 0x13:
                     mtlo(inst);
+                    break;
+                case 0x18:
+                    mult(inst);
+                    break;
+                case 0x19:
+                    multu(inst);
                     break;
                 case 0x1A:
                     div(inst);
@@ -165,11 +174,20 @@ void CPU::DecodeAndExecute(uint32_t instruction) {
         case 0x10:
             HandleCop0(inst);
             break;
+        case 0x11:
+            HandleCop1(inst);
+            break;
+        case 0x13:
+            HandleCop3(inst);
+            break;
         case 0x20:
             lb(inst);
             break;
         case 0x21:
             lh(inst);
+            break;
+        case 0x22:
+            lwl(inst);
             break;
         case 0x23:
             lw(inst);
@@ -180,14 +198,32 @@ void CPU::DecodeAndExecute(uint32_t instruction) {
         case 0x25:
             lhu(inst);
             break;
+        case 0x26:
+            lwr(inst);
+            break;
         case 0x28:
             sb(inst);
             break;
         case 0x29:
             sh(inst);
             break;
+        case 0x2A:
+            swl(inst);
+            break;
         case 0x2B:
             sw(inst);
+            break;
+        case 0x2E:
+            swr(inst);
+            break;
+        case 0x30:      // LWC0
+        case 0x31:      // LWC1
+        case 0x33:      // LWC3
+        case 0x38:      // SWC0
+        case 0x39:      // SWC1
+        case 0x3B:      // SWC3
+            ExecutePendingLoad();
+            HandleException(Exceptions::CpU);
             break;
         default:
             printf("Unhandled Instruction: %08x\n", instruction);
@@ -343,6 +379,11 @@ void CPU::syscall(const Instruction& inst) {
     HandleException(Exceptions::Syscall);
 }
 
+void CPU::break_(const Instruction& inst) {
+    ExecutePendingLoad();
+    HandleException(Exceptions::Break);
+}
+
 void CPU::mthi(const Instruction& inst) {
     uint32_t data = registers[inst.rs()];
     ExecutePendingLoad();
@@ -366,6 +407,23 @@ void CPU::mflo(const Instruction& inst) {
     registers[inst.rd()] = lo;
 }
 
+void CPU::mult(const Instruction& inst) {
+    int64_t rs = (int64_t)((int32_t)registers[inst.rs()]);
+    int64_t rt = (int64_t)((int32_t)registers[inst.rt()]);
+    int64_t result = rs * rt;
+    ExecutePendingLoad();
+    hi = (uint32_t)(result >> 32);
+    lo = (uint32_t)result;
+}
+
+void CPU::multu(const Instruction& inst) {
+    uint64_t rs = (uint64_t)registers[inst.rs()];
+    uint64_t rt = (uint64_t)registers[inst.rt()];
+    uint64_t result = rs * rt;
+    ExecutePendingLoad();
+    hi = (uint32_t)(result >> 32);
+    lo = (uint32_t)result;
+}
 
 void CPU::div(const Instruction& inst) {
     int32_t num = (int32_t)registers[inst.rs()];
@@ -598,6 +656,16 @@ void CPU::lui(const Instruction& inst) {
     registers[0] = 0;
 }
 
+void CPU::HandleCop1(const Instruction& inst) {
+    ExecutePendingLoad();
+    HandleException(Exceptions::CpU);
+}
+
+void CPU::HandleCop3(const Instruction& inst) {
+    ExecutePendingLoad();
+    HandleException(Exceptions::CpU);
+}
+
 void CPU::mfc0(const Instruction& inst) {
     uint32_t rt = inst.rt();
     uint32_t cop0_reg = inst.rd();
@@ -667,6 +735,36 @@ void CPU::lw(const Instruction& inst) {
     pending_load_data = system->Read32(address);
 }
 
+void CPU::lwl(const Instruction& inst) {
+    uint32_t address = registers[inst.rs()] + (int32_t)((int16_t)inst.imm16());
+    uint32_t rt = inst.rt();
+    ExecutePendingLoad();
+    if (COP0.status_register.status_flags.isolate_cache != 0) {
+        return;
+    }
+    uint32_t rt_data = registers[rt];
+    uint32_t aligned_word = system->Read32(address & 0xFFFFFFFC);
+    switch (address % 4) {
+        case 0:
+            pending_load_data = (rt_data & 0x00FFFFFF) | (aligned_word << 24);
+            break;
+        case 1:
+            pending_load_data = (rt_data & 0x0000FFFF) | (aligned_word << 16);
+            break;
+        case 2:
+            pending_load_data = (rt_data & 0x000000FF) | (aligned_word << 8);
+            break;
+        case 3:
+            pending_load_data = (rt_data & 0x00000000) | (aligned_word << 0);
+            break;
+        default:
+            //Should never get here
+            assert(false);
+    }
+    pending_reg = rt;
+    is_pending_load = true;
+}
+
 void CPU::lbu(const Instruction& inst) {
     if (COP0.status_register.status_flags.isolate_cache != 0) {
         ExecutePendingLoad();
@@ -697,6 +795,36 @@ void CPU::lhu(const Instruction& inst) {
     pending_load_data = (uint32_t)((uint16_t)system->Read16(address));
 }
 
+void CPU::lwr(const Instruction& inst) {
+    uint32_t address = registers[inst.rs()] + (int32_t)((int16_t)inst.imm16());
+    uint32_t rt = inst.rt();
+    ExecutePendingLoad();
+    if (COP0.status_register.status_flags.isolate_cache != 0) {
+        return;
+    }
+    uint32_t rt_data = registers[rt];
+    uint32_t aligned_word = system->Read32(address & 0xFFFFFFFC);
+    switch (address % 4) {
+    case 0:
+        pending_load_data = (rt_data & 0x00000000) | (aligned_word >> 0);
+        break;
+    case 1:
+        pending_load_data = (rt_data & 0xFF000000) | (aligned_word >> 8);
+        break;
+    case 2:
+        pending_load_data = (rt_data & 0xFFFF0000) | (aligned_word >> 16);
+        break;
+    case 3:
+        pending_load_data = (rt_data & 0xFFFFFF00) | (aligned_word >> 24);
+        break;
+    default:
+        //Should never get here
+        assert(false);
+    }
+    pending_reg = rt;
+    is_pending_load = true;
+}
+
 void CPU::sb(const Instruction& inst) {
     if (COP0.status_register.status_flags.isolate_cache != 0) {
         ExecutePendingLoad();
@@ -725,6 +853,39 @@ void CPU::sh(const Instruction& inst) {
     system->Write16(address, data);
 }
 
+void CPU::swl(const Instruction& inst) {
+    uint32_t address = registers[inst.rs()] + (int32_t)((int16_t)inst.imm16());
+    uint32_t aligned_addr = address & 0xFFFFFFFC;
+    uint32_t data = registers[inst.rt()];
+    uint32_t current_data = system->Read32(aligned_addr);
+    if (address & 0x03) {
+        HandleException(Exceptions::AddrErrorStore);
+        return;
+    }
+    ExecutePendingLoad();
+    if (COP0.status_register.status_flags.isolate_cache != 0) {
+        return;
+    }
+    switch (address % 4) {
+        case 0:
+            data = (current_data & 0xFFFFFF00) | (data >> 24);
+            break;
+        case 1:
+            data = (current_data & 0xFFFF0000) | (data >> 16);
+            break;
+        case 2:
+            data = (current_data & 0xFF000000) | (data >> 8);
+            break;
+        case 3:
+            data = (current_data & 0x00000000) | (data >> 0);
+            break;
+        default:
+            assert(false);
+            break;
+    }
+    system->Write32(address, data);
+}
+
 void CPU::sw(const Instruction& inst) {
     if (COP0.status_register.status_flags.isolate_cache != 0) {
         ExecutePendingLoad();
@@ -737,5 +898,38 @@ void CPU::sw(const Instruction& inst) {
         return;
     }
     ExecutePendingLoad();
+    system->Write32(address, data);
+}
+
+void CPU::swr(const Instruction& inst) {
+    uint32_t address = registers[inst.rs()] + (int32_t)((int16_t)inst.imm16());
+    uint32_t aligned_addr = address & 0xFFFFFFFC;
+    uint32_t data = registers[inst.rt()];
+    uint32_t current_data = system->Read32(aligned_addr);
+    if (address & 0x03) {
+        HandleException(Exceptions::AddrErrorStore);
+        return;
+    }
+    ExecutePendingLoad();
+    if (COP0.status_register.status_flags.isolate_cache != 0) {
+        return;
+    }
+    switch (address % 4) {
+    case 0:
+        data = (current_data & 0x00000000) | (data << 0);
+        break;
+    case 1:
+        data = (current_data & 0x000000FF) | (data << 8);
+        break;
+    case 2:
+        data = (current_data & 0x0000FFFF) | (data << 16);
+        break;
+    case 3:
+        data = (current_data & 0x00FFFFFF) | (data << 24);
+        break;
+    default:
+        assert(false);
+        break;
+    }
     system->Write32(address, data);
 }

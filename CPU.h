@@ -37,7 +37,7 @@ private:
         IBE = 6,            // Bus Error (inst. fetch)
         DBE = 7,            // Bus Error (load or store)
         Syscall = 8,        // Syscall Exception
-        Bp = 9,             // Breakpoint Exception
+        Break = 9,          // Breakpoint Exception
         RI = 10,            // Reserved Instruction Exception
         CpU = 11,           // Coprocessor Unimplemented
         Overflow = 12,      // Arithmetic Overflow
@@ -57,10 +57,13 @@ private:
     void jr(const Instruction& inst);
     void jalr(const Instruction& inst);
     void syscall(const Instruction& inst);
+    void break_(const Instruction& inst);
     void mflo(const Instruction& inst);
     void mtlo(const Instruction& inst);
     void mfhi(const Instruction& inst);
     void mthi(const Instruction& inst);
+    void mult(const Instruction& inst);
+    void multu(const Instruction& inst);
     void div(const Instruction& inst);
     void divu(const Instruction& inst);
     void add(const Instruction& inst);
@@ -88,16 +91,22 @@ private:
     void ori(const Instruction& inst);
     void xori(const Instruction& inst);
     void lui(const Instruction& inst);
+    void HandleCop1(const Instruction& inst);
+    void HandleCop3(const Instruction& inst);
     void mfc0(const Instruction& inst);
     void mtc0(const Instruction& inst);
     void rfe(const Instruction& inst);
     void lb(const Instruction& inst);
     void lh(const Instruction& inst);
     void lw(const Instruction& inst);
+    void lwl(const Instruction& inst);
     void lbu(const Instruction& inst);
     void lhu(const Instruction& inst);
+    void lwr(const Instruction& inst);
     void sb(const Instruction& inst);
     void sh(const Instruction& inst);
+    void swl(const Instruction& inst);
     void sw(const Instruction& inst);
+    void swr(const Instruction& inst);
 };
 

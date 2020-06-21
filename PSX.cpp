@@ -122,9 +122,6 @@ void PSX::Write32(uint32_t address, const uint32_t data) {
         sys_dma->Write32(address, data);
     } else {
         printf("Unhandled write of size 32 at address %08x\n", address);
-        if (address == 0xFFFD8644) {
-            printf("no\n");
-        }
     }
 }
 
