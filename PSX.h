@@ -8,6 +8,7 @@
 #include "SPU.h"
 #include "IRQ.h"
 #include "DMA.h"
+#include "Timers.h"
 
 class PSX {
 public:
@@ -27,6 +28,7 @@ private:
     std::unique_ptr<SPU> sys_spu;
     std::unique_ptr<IRQ> sys_irq;
     std::unique_ptr<DMA> sys_dma;
+    std::unique_ptr<Timers> sys_timers;
 
     const uint32_t region_mask[8] = {
     0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,     // KUSEG

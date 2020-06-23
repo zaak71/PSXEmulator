@@ -15,6 +15,10 @@ void IRQ::Write32(uint32_t offset, uint32_t data) {
 	}
 }
 
+void IRQ::Write16(uint32_t offset, uint16_t data) {
+	Write32(offset, (uint32_t)data);
+}
+
 uint32_t IRQ::Read32(uint32_t offset) const {
 	switch (offset) {
 	case 0:

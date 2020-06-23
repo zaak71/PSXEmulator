@@ -142,17 +142,20 @@
     <ClCompile Include="bios.cpp" />
     <ClCompile Include="cop0.cpp" />
     <ClCompile Include="DMA.cpp" />
+    <ClCompile Include="DMAChannel.cpp" />
     <ClCompile Include="IRQ.cpp" />
     <ClCompile Include="PSX.cpp" />
     <ClCompile Include="CPU.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="RAM.cpp" />
     <ClCompile Include="SPU.cpp" />
+    <ClCompile Include="Timers.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="bios.h" />
     <ClInclude Include="cop0.h" />
     <ClInclude Include="DMA.h" />
+    <ClInclude Include="DMAChannel.h" />
     <ClInclude Include="instruction.h" />
     <ClInclude Include="IRQ.h" />
     <ClInclude Include="PSX.h" />
@@ -160,6 +163,7 @@
     <ClInclude Include="CPU.h" />
     <ClInclude Include="RAM.h" />
     <ClInclude Include="SPU.h" />
+    <ClInclude Include="Timers.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -1,12 +1,18 @@
 #pragma once
 
 #include <cstdint>
+#include "DMAChannel.h"
 
 class DMA {
 public:
-    void Write32(uint32_t address, uint32_t data);
-    uint32_t Read32(uint32_t address) const;
+    void Write32(uint32_t offset, uint32_t data);
+    uint32_t Read32(uint32_t offset) const;
 private:
+    DMAChannel channels[7];
+
+    bool GetMasterFlag() const;
+    uint32_t GetInterruptReg() const;
+
     union ControlReg {
         uint32_t reg = 0x07654321;
         struct {

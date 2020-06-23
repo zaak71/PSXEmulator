@@ -10,6 +10,7 @@ PSX::PSX() {
     sys_spu = std::make_unique<SPU>();
     sys_irq = std::make_unique<IRQ>();
     sys_dma = std::make_unique<DMA>();
+    sys_timers = std::make_unique<Timers>();
     sys_bios->LoadBios("bios/SCPH1001.BIN");
 }
 
@@ -77,7 +78,7 @@ uint32_t PSX::Read32(uint32_t address) const {
         return sys_irq->Read32(address - IRQ_START);
     } else if (address >= DMA_START
         && address + 4 <= DMA_START + DMA_SIZE) {
-        return sys_dma->Read32(address);
+        return sys_dma->Read32(address - DMA_START);
     } else if (address >= GPU_START
         && address + 4 <= GPU_START + GPU_SIZE) {
         printf("Access to GPU at address %08x\n", address);
@@ -119,9 +120,9 @@ void PSX::Write32(uint32_t address, const uint32_t data) {
         sys_irq->Write32(address - IRQ_START, data);
     } else if (address >= DMA_START
         && address + 4 <= DMA_START + DMA_SIZE) {
-        sys_dma->Write32(address, data);
+        sys_dma->Write32(address - DMA_START, data);
     } else {
-        printf("Unhandled write of size 32 at address %08x\n", address);
+        printf("Unhandled write of size 32 at address %08x, data %08x\n", address, data);
     }
 }
 
@@ -152,12 +153,15 @@ void PSX::Write16(uint32_t address, const uint16_t data) {
         printf("Write to Cache Control\n");
     } else if (address >= TIMER_START
         && address + 2 <= TIMER_START + TIMER_SIZE) {
-        printf("Write to Timers\n");
+        sys_timers->Write16(address - TIMER_START, data);
+    } else if (address >= IRQ_START
+        && address + 2 <= IRQ_START + IRQ_SIZE) {
+        sys_irq->Write16(address - IRQ_START, data);
     } else if (address >= EXPANSION2_START
         && address + 4 <= EXPANSION2_START + EXPANSION2_SIZE) {
         printf("Write to Expansion 2\n");
     } else {
-        printf("Unhandled write of size 16 at address %08x\n", address);
+        printf("Unhandled write of size 16 at address %08x, data %08x\n", address, data);
     }
 }
 
@@ -183,6 +187,6 @@ void PSX::Write8(uint32_t address, const uint8_t data) {
         && address + 4 <= EXPANSION2_START + EXPANSION2_SIZE) {
         printf("Write to Expansion 2\n");
     } else {
-        printf("Unhandled write of size 8 at address %08x\n", address);
+        printf("Unhandled write of size 8 at address %08x, data %08x\n", address, data);
     }
 }

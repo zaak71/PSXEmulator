@@ -42,6 +42,12 @@
     <ClCompile Include="DMA.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="DMAChannel.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Timers.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="bios.h">
@@ -72,6 +78,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="DMA.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="DMAChannel.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Timers.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
