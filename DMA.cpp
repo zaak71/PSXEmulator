@@ -3,6 +3,10 @@
 #include <cassert>
 #include <cstdio>
 
+void DMA::Init(RAM* ram) {
+    this->ram = ram;
+}
+
 void DMA::Write32(uint32_t offset, uint32_t data) {
     uint32_t channel = offset / 0x10;
     if (channel <= 6) {
@@ -21,15 +25,16 @@ void DMA::Write32(uint32_t offset, uint32_t data) {
             assert(false);
             break;
         }
+        if (channels[channel].IsActive()) {
+            DoTransfer(channel);
+        }
     }
     else {
         if (offset == 0x70) {       // Write to control register
             DMA_control_reg.reg = data;
-        }
-        else if (offset == 0x74) {  // Write to interrupt register
+        } else if (offset == 0x74) {  // Write to interrupt register
             DMA_interrupt_reg.reg = data;
-        }
-        else {
+        } else {
             printf("Unhandled Write to DMA at offset %08x\n", offset);
             assert(false);
         }
@@ -87,4 +92,56 @@ uint32_t DMA::GetInterruptReg() const {
         reg &= (~(1 << 31));
     }
     return reg;
+}
+
+void DMA::DoTransfer(uint32_t channel) {
+    assert(channel <= 6);
+    DMAChannel& curr_channel = channels[channel];
+    DMAChannel::SyncMode sync_mode = curr_channel.control.flags.sync_mode;
+    switch (sync_mode) {
+        case DMAChannel::SyncMode::Manual:
+            DoManualTransfer(channel);
+            break;
+        default:
+            const char* mode = DMAChannel::SyncModeToString(sync_mode);
+            printf("Attempt to initiate DMA Transfer: mode %s, channel %d\n", mode, channel);
+            assert(false);
+            break;
+        }
+}
+
+void DMA::DoManualTransfer(uint32_t channel) {
+    DMAChannel& curr_channel = channels[channel];
+    uint32_t inc = curr_channel.control.flags.mem_addr_step ? -4 : 4;
+    uint32_t size = curr_channel.GetTransferLength();
+    uint32_t addr = curr_channel.dma_base_address & 0x00FFFFFC;
+    DMAChannel::TransferDirection transfer_direction = curr_channel.control.flags.transfer_dir;
+    switch (transfer_direction) {
+        case DMAChannel::TransferDirection::ToRAM:
+            switch (static_cast<Channel>(channel)) {
+                case Channel::OTC:
+                    while (size > 0) {
+                        uint32_t src = (addr - 4) & 0x00FFFFFC;
+                        if (size == 1) {
+                            src = 0x00FFFFFF;
+                        }
+                        ram->Write(addr, src);
+                        addr += inc;
+                        size--;
+                    }
+                    curr_channel.FinishTransfer();
+                    break;
+                default:
+                    const char* mode = DMAChannel::TransferDirToString(transfer_direction);
+                    printf("Attempt to initiate manual DMA Transfer: direction %s, channel %d\n", mode, channel);
+                    assert(false);
+                    break;
+            }
+            break;
+        default:
+            const char* mode = DMAChannel::TransferDirToString(transfer_direction);
+            printf("Attempt to initiate manual DMA Transfer: direction %s, channel %d\n", mode, channel);
+            assert(false);
+            break;
+    }
 }

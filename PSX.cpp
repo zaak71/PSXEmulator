@@ -11,7 +11,9 @@ PSX::PSX() {
     sys_irq = std::make_unique<IRQ>();
     sys_dma = std::make_unique<DMA>();
     sys_timers = std::make_unique<Timers>();
+
     sys_bios->LoadBios("bios/SCPH1001.BIN");
+    sys_dma->Init(sys_ram.get());
 }
 
 void PSX::Run() {
