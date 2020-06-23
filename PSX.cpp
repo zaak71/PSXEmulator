@@ -11,6 +11,7 @@ PSX::PSX() {
     sys_irq = std::make_unique<IRQ>();
     sys_dma = std::make_unique<DMA>();
     sys_timers = std::make_unique<Timers>();
+    sys_gpu = std::make_unique<GPU>();
 
     sys_bios->LoadBios("bios/SCPH1001.BIN");
     sys_dma->Init(sys_ram.get());
@@ -55,9 +56,12 @@ uint16_t PSX::Read16(uint32_t address) const {
     } else if (address >= SPU_START
         && address + 2 <= SPU_START + SPU_SIZE) {
         return sys_spu->Read16(address);
+    }  else if (address >= IRQ_START
+        && address + 2 <= IRQ_START + IRQ_SIZE) {
+        return sys_spu->Read16(address);
     } else {
         printf("Unhandled memory access of size 16 at address %08x\n", address);
-        //assert(false);
+        assert(false);
         return 0;
     }
 }
@@ -84,7 +88,7 @@ uint32_t PSX::Read32(uint32_t address) const {
     } else if (address >= GPU_START
         && address + 4 <= GPU_START + GPU_SIZE) {
         printf("Access to GPU at address %08x\n", address);
-        return 0x10000000;
+        return sys_gpu->Read32(address - GPU_START);
     } else {
         printf("Unhandled memory access of size 32 at address %08x\n", address);
         assert(false);

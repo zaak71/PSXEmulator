@@ -143,6 +143,7 @@
     <ClCompile Include="cop0.cpp" />
     <ClCompile Include="DMA.cpp" />
     <ClCompile Include="DMAChannel.cpp" />
+    <ClCompile Include="GPU.cpp" />
     <ClCompile Include="IRQ.cpp" />
     <ClCompile Include="PSX.cpp" />
     <ClCompile Include="CPU.cpp" />
@@ -156,6 +157,7 @@
     <ClInclude Include="cop0.h" />
     <ClInclude Include="DMA.h" />
     <ClInclude Include="DMAChannel.h" />
+    <ClInclude Include="GPU.h" />
     <ClInclude Include="instruction.h" />
     <ClInclude Include="IRQ.h" />
     <ClInclude Include="PSX.h" />

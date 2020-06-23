@@ -9,6 +9,7 @@
 #include "IRQ.h"
 #include "DMA.h"
 #include "Timers.h"
+#include "GPU.h"
 
 class PSX {
 public:
@@ -29,6 +30,7 @@ private:
     std::unique_ptr<IRQ> sys_irq;
     std::unique_ptr<DMA> sys_dma;
     std::unique_ptr<Timers> sys_timers;
+    std::unique_ptr<GPU> sys_gpu;
 
     const uint32_t region_mask[8] = {
     0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,     // KUSEG

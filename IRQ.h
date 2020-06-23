@@ -7,6 +7,7 @@ public:
     void Write32(uint32_t offset, uint32_t data);
     void Write16(uint32_t offset, uint16_t data);
     uint32_t Read32(uint32_t offset) const;
+    uint16_t Read16(uint32_t offset) const;
 private:
     uint32_t i_stat = 0;
     union Mask {

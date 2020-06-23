@@ -33,3 +33,15 @@ uint32_t IRQ::Read32(uint32_t offset) const {
 		break;
 	}
 }
+
+uint16_t IRQ::Read16(uint32_t offset) const {
+	switch (offset) {
+	case 4:
+		return i_mask.reg & 0x0000FFFF;
+		break;
+	default:
+		printf("Unhandled memory access of IRQ, size 16 at offset %01x\n", offset);
+		return 0;
+		break;
+	}
+}
