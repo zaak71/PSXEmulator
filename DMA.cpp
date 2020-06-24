@@ -1,10 +1,12 @@
 #include "DMA.h"
+#include "PSX.h"
 
 #include <cassert>
 #include <cstdio>
 
-void DMA::Init(RAM* ram) {
+void DMA::Init(RAM* ram, PSX* sys) {
     this->ram = ram;
+    this->sys = sys;
 }
 
 void DMA::Write32(uint32_t offset, uint32_t data) {
@@ -100,7 +102,11 @@ void DMA::DoTransfer(uint32_t channel) {
     DMAChannel::SyncMode sync_mode = curr_channel.control.flags.sync_mode;
     switch (sync_mode) {
         case DMAChannel::SyncMode::Manual:
+        case DMAChannel::SyncMode::Block:
             DoManualTransfer(channel);
+            break;
+        case DMAChannel::SyncMode::LinkedList:
+            DoLinkedTransfer(channel);
             break;
         default:
             const char* mode = DMAChannel::SyncModeToString(sync_mode);
@@ -114,20 +120,33 @@ void DMA::DoManualTransfer(uint32_t channel) {
     DMAChannel& curr_channel = channels[channel];
     uint32_t inc = curr_channel.control.flags.mem_addr_step ? -4 : 4;
     uint32_t size = curr_channel.GetTransferLength();
-    uint32_t addr = curr_channel.dma_base_address & 0x00FFFFFC;
+    uint32_t addr = curr_channel.dma_base_address;
     DMAChannel::TransferDirection transfer_direction = curr_channel.control.flags.transfer_dir;
     switch (transfer_direction) {
         case DMAChannel::TransferDirection::ToRAM:
             switch (static_cast<Channel>(channel)) {
                 case Channel::OTC:
-                    while (size > 0) {
-                        uint32_t src = (addr - 4) & 0x00FFFFFC;
-                        if (size == 1) {
-                            src = 0x00FFFFFF;
-                        }
-                        ram->Write(addr, src);
+                    for (uint32_t i = 0; i < size; i++) {
+                        uint32_t src = (addr - 4) & 0x000FFFFC;
+                        sys->Write32(addr, src);
                         addr += inc;
-                        size--;
+                    }
+                    curr_channel.FinishTransfer();
+                    break;
+                default:
+                    const char* mode = DMAChannel::TransferDirToString(transfer_direction);
+                    printf("Attempt to initiate manual DMA Transfer: direction %s, channel %d\n", mode, channel);
+                    assert(false);
+                    break;
+            }
+            break;
+        case DMAChannel::TransferDirection::FromRAM:
+            switch (static_cast<Channel>(channel)) {
+                case Channel::GPU:
+                    for (uint32_t i = 0; i < size; i++) {
+                        uint32_t cmd = sys->Read32(addr);
+                        printf("GP0 command (Manual): %08x\n", cmd);
+                        addr += inc;
                     }
                     curr_channel.FinishTransfer();
                     break;
@@ -141,6 +160,46 @@ void DMA::DoManualTransfer(uint32_t channel) {
         default:
             const char* mode = DMAChannel::TransferDirToString(transfer_direction);
             printf("Attempt to initiate manual DMA Transfer: direction %s, channel %d\n", mode, channel);
+            assert(false);
+            break;
+    }
+}
+
+void DMA::DoLinkedTransfer(uint32_t channel) {
+    DMAChannel& curr_channel = channels[channel];
+    uint32_t inc = curr_channel.control.flags.mem_addr_step ? -4 : 4;
+    uint32_t addr = curr_channel.dma_base_address;
+    DMAChannel::TransferDirection transfer_direction = curr_channel.control.flags.transfer_dir;
+    bool should_transfer = true;
+
+    switch (transfer_direction) {
+        case DMAChannel::TransferDirection::FromRAM:
+            switch (static_cast<Channel>(channel)) {
+                case Channel::GPU:
+                    while (should_transfer) {
+                        uint32_t header = sys->Read32(addr);
+                        uint32_t size = header >> 24;
+                        should_transfer = (header & 0x00FFFFFF) != 0x00FFFFFF 
+                            && (header && 0x00FFFFFF) != 0;
+                        for (uint32_t i = 0; i < size; i++) {
+                            addr = (addr += inc) & 0x000FFFFC;
+                            uint32_t cmd = sys->Read32(addr);
+                            printf("GPU command (LL): %08x\n", cmd);
+                        }
+                        addr = header & 0x00FFFFFF;
+                    }
+                    curr_channel.FinishTransfer();
+                    break;
+                default:
+                    const char* mode = DMAChannel::TransferDirToString(transfer_direction);
+                    printf("Attempt to initiate linked DMA Transfer: direction %s, channel %d\n", mode, channel);
+                    assert(false);
+                    break;
+                }
+            break;
+        default:
+            const char* mode = DMAChannel::TransferDirToString(transfer_direction);
+            printf("Attempt to initiate linked DMA Transfer: direction %s, channel %d\n", mode, channel);
             assert(false);
             break;
     }

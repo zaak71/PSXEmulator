@@ -24,7 +24,7 @@ void Timers::Write16(uint32_t offset, uint16_t data) {
 	}
 }
 
-uint16_t Timers::Read16(uint32_t offset) {
+uint16_t Timers::Read16(uint32_t offset) const {
 	uint16_t timer = offset / 0x10;
 	offset = offset % 0x10;
 	switch (offset) {
@@ -42,5 +42,26 @@ uint16_t Timers::Read16(uint32_t offset) {
 			assert(false);
 			return 0;
 			break;
+	}
+}
+
+uint32_t Timers::Read32(uint32_t offset) const {
+	uint16_t timer = offset / 0x10;
+	offset = offset % 0x10;
+	switch (offset) {
+	case 0:
+		return curr_counter_val[timer];
+		break;
+	case 4:
+		return counter_mode[timer].reg;
+		break;
+	case 8:
+		return target_val[timer];
+		break;
+	default:
+		printf("Unhandled read from Timer at offset %02x\n", offset);
+		assert(false);
+		return 0;
+		break;
 	}
 }

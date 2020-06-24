@@ -5,7 +5,8 @@
 class Timers {
 public:
     void Write16(uint32_t offset, uint16_t data);
-    uint16_t Read16(uint32_t offset);
+    uint16_t Read16(uint32_t offset) const;
+    uint32_t Read32(uint32_t offset) const;
 private:
     uint16_t curr_counter_val[3];
     union {

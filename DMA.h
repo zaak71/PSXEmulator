@@ -5,14 +5,17 @@
 #include "DMAChannel.h"
 #include "RAM.h"
 
+class PSX;
+
 class DMA {
 public:
-    void Init(RAM* ram);
+    void Init(RAM* ram, PSX* sys);
     void Write32(uint32_t offset, uint32_t data);
     uint32_t Read32(uint32_t offset) const;
 
     void DoTransfer(uint32_t channel);
     void DoManualTransfer(uint32_t channel);
+    void DoLinkedTransfer(uint32_t channel);
 private:
     enum class Channel : uint32_t {
         MDECIn = 0,
@@ -24,6 +27,7 @@ private:
         OTC = 6
     };
 
+    PSX* sys;
     RAM* ram;
     std::array<DMAChannel, 7> channels;
 
