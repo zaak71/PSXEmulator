@@ -7,7 +7,7 @@ public:
     uint32_t Read32(uint32_t offset) const;
 private:
     union Status {
-        uint32_t reg = 0x14802000;
+        uint32_t reg = 0x1C802000;
         struct {
             uint32_t tex_page_x_base : 4;		// N*64
             uint32_t tex_page_y_base : 1;		// 0 or 256

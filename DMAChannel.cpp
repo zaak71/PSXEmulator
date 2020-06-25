@@ -13,7 +13,7 @@ uint32_t DMAChannel::GetTransferLength() const {
 		case SyncMode::Manual:
 			return dma_block_control & 0xFFFF;
 			break;
-		case SyncMode::Block:
+		case SyncMode::Sync:
 			return (dma_block_control & 0xFFFF) * ((dma_block_control >> 16) & 0xFFFF);
 			break;
 		case SyncMode::LinkedList:	// should never reach here
@@ -34,8 +34,8 @@ const char* DMAChannel::SyncModeToString(SyncMode sm) {
 		case SyncMode::Manual:
 			return "Manual";
 			break;
-		case SyncMode::Block:
-			return "Block";
+		case SyncMode::Sync:
+			return "Sync";
 			break;
 		case SyncMode::LinkedList:
 			return "Linked List";

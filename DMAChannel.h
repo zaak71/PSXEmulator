@@ -11,7 +11,7 @@ public:
 
     enum class SyncMode : uint32_t {
         Manual = 0,             // For OTC and CDROM
-        Block = 1,              // For MDEC, SPU, GPU
+        Sync = 1,               // For MDEC, SPU, GPU
         LinkedList = 2          // For GPU command lists
     };
 

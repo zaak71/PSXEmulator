@@ -371,6 +371,7 @@ void CPU::jalr(const Instruction& inst) {
     next_PC = address;
     ExecutePendingLoad();
     registers[inst.rd()] = ra;
+    registers[0] = 0;
     branch = true;
 }
 
@@ -394,6 +395,7 @@ void CPU::mthi(const Instruction& inst) {
 void CPU::mfhi(const Instruction& inst) {
     ExecutePendingLoad();
     registers[inst.rd()] = hi;
+    registers[0] = 0;
 }
 
 void CPU::mtlo(const Instruction& inst) {
@@ -405,6 +407,7 @@ void CPU::mtlo(const Instruction& inst) {
 void CPU::mflo(const Instruction& inst) {
     ExecutePendingLoad();
     registers[inst.rd()] = lo;
+    registers[0] = 0;
 }
 
 void CPU::mult(const Instruction& inst) {

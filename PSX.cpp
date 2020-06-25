@@ -13,7 +13,7 @@ PSX::PSX() {
     sys_timers = std::make_unique<Timers>();
     sys_gpu = std::make_unique<GPU>();
 
-    sys_bios->LoadBios("bios/SCPH1001.BIN");
+    sys_bios->LoadBios("bios/TEST.BIN");
     sys_dma->Init(sys_ram.get(), this);
 }
 
@@ -132,6 +132,9 @@ void PSX::Write32(uint32_t address, const uint32_t data) {
         sys_dma->Write32(address - DMA_START, data);
     } else {
         printf("Unhandled write of size 32 at address %08x, data %08x\n", address, data);
+    }
+    if (data == 0x000056B5) {
+        printf("ok\n");
     }
 }
 
