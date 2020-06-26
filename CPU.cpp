@@ -243,11 +243,6 @@ void CPU::ExecutePendingLoad() {
 void CPU::Branch(int imm) {
     branch = true;
     imm = imm << 2;
-    uint32_t pc = next_PC;
-    pc += imm;
-    // Compensate for the hardcoded add of 4
-    pc -= 4;
-    //next_PC = pc;
     next_PC = PC + imm;
 }
 
@@ -312,7 +307,7 @@ void CPU::branches(const Instruction& inst) {
     }
     ExecutePendingLoad();
     if (link) {
-        registers[31] = PC;
+        registers[31] = next_PC;
     }
     if (result) {
         Branch((int32_t)((int16_t)inst.imm16()));
@@ -415,7 +410,7 @@ void CPU::mult(const Instruction& inst) {
     int64_t rt = (int64_t)((int32_t)registers[inst.rt()]);
     int64_t result = rs * rt;
     ExecutePendingLoad();
-    hi = (uint32_t)(result >> 32);
+    hi = (uint32_t)((uint64_t)result >> 32);
     lo = (uint32_t)result;
 }
 
@@ -563,23 +558,28 @@ void CPU::jal(const Instruction& inst) {
 }
 
 void CPU::bne(const Instruction& inst) {
-    bool result = registers[inst.rs()] != registers[inst.rt()];
+    uint32_t rs_data = registers[inst.rs()];
+    uint32_t rt_data = registers[inst.rt()];
+    bool branch = rs_data != rt_data;
     ExecutePendingLoad();
-    if (result) {
+    if (branch) {
         Branch((int32_t)((int16_t)inst.imm16()));
     }
 }
 
 void CPU::beq(const Instruction& inst) {
-    bool result = registers[inst.rs()] == registers[inst.rt()];
+    uint32_t rs_data = registers[inst.rs()];
+    uint32_t rt_data = registers[inst.rt()];
+    bool branch = rs_data == rt_data;
     ExecutePendingLoad();
-    if (result) {
+    if (branch) {
         Branch((int32_t)((int16_t)inst.imm16()));
     }
 }
 
 void CPU::blez(const Instruction& inst) {
-    bool result = (int32_t)registers[inst.rs()] <= 0;
+    int32_t rs_data = (int32_t)registers[inst.rs()];
+    bool result = rs_data <= 0;
     ExecutePendingLoad();
     if (result) {
         Branch((int32_t)((int16_t)inst.imm16()));
@@ -587,7 +587,8 @@ void CPU::blez(const Instruction& inst) {
 }
 
 void CPU::bgtz(const Instruction& inst) {
-    bool result = (int32_t)registers[inst.rs()] > 0;
+    int32_t rs_data = (int32_t)registers[inst.rs()];
+    bool result = rs_data > 0;
     ExecutePendingLoad();
     if (result) {
         Branch((int32_t)((int16_t)inst.imm16()));
@@ -861,10 +862,6 @@ void CPU::swl(const Instruction& inst) {
     uint32_t aligned_addr = address & 0xFFFFFFFC;
     uint32_t data = registers[inst.rt()];
     uint32_t current_data = system->Read32(aligned_addr);
-    if (address & 0x03) {
-        HandleException(Exceptions::AddrErrorStore);
-        return;
-    }
     ExecutePendingLoad();
     if (COP0.status_register.status_flags.isolate_cache != 0) {
         return;
@@ -909,10 +906,6 @@ void CPU::swr(const Instruction& inst) {
     uint32_t aligned_addr = address & 0xFFFFFFFC;
     uint32_t data = registers[inst.rt()];
     uint32_t current_data = system->Read32(aligned_addr);
-    if (address & 0x03) {
-        HandleException(Exceptions::AddrErrorStore);
-        return;
-    }
     ExecutePendingLoad();
     if (COP0.status_register.status_flags.isolate_cache != 0) {
         return;

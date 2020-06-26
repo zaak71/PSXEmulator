@@ -171,9 +171,6 @@ void DMA::DoLinkedTransfer(uint32_t channel) {
                     addr = (addr + inc) & 0x00FFFFFC;
                     uint32_t cmd = sys->Read32(addr);
                     printf("GPU command (LL): %08x\n", cmd);
-                    if (cmd == 0x28030303) {
-                        printf("ok\n");
-                    }
                 }
                 addr = header & 0x00FFFFFF;
             }
