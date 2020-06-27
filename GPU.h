@@ -5,6 +5,7 @@
 class GPU {
 public:
     uint32_t Read32(uint32_t offset) const;
+    void Write32(uint32_t offset, uint32_t data);
 private:
     union Status {
         uint32_t reg = 0x1C802000;

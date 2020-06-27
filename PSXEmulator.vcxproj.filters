@@ -51,6 +51,9 @@
     <ClCompile Include="GPU.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="cdrom.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="bios.h">
@@ -90,6 +93,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="GPU.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cdrom.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -12,8 +12,9 @@ PSX::PSX() {
     sys_dma = std::make_unique<DMA>();
     sys_timers = std::make_unique<Timers>();
     sys_gpu = std::make_unique<GPU>();
+    sys_cdrom = std::make_unique<cdrom>();
 
-    sys_bios->LoadBios("bios/TEST.BIN");
+    sys_bios->LoadBios("bios/SCPH1001.BIN");
     sys_dma->Init(sys_ram.get(), this);
 }
 
@@ -33,6 +34,9 @@ uint8_t PSX::Read8(uint32_t address) const {
     } else if (address >= EXPANSION1_START
         && address + 1 <= EXPANSION1_START + EXPANSION1_SIZE) {
         return 0xFF;
+    } else if (address >= CDROM_START
+        && address + 1 <= CDROM_START + CDROM_SIZE) {
+        return sys_cdrom->Read8(address - CDROM_START);
     } else {
         printf("Unhandled memory read of size 8 at address %08x\n", address);
         assert(false);
@@ -68,10 +72,6 @@ uint16_t PSX::Read16(uint32_t address) const {
 
 uint32_t PSX::Read32(uint32_t address) const {
     address = address & region_mask[address >> 29];
-    if (address & 0x03) {
-        printf("Warning: misaligned memory access of size 32 at address %08x\n", address);
-        return 0;
-    }
 
     if (address >= RAM_START_ADDRESS 
         && address + 4 <= RAM_START_ADDRESS + RAM_SIZE) {
@@ -101,10 +101,6 @@ uint32_t PSX::Read32(uint32_t address) const {
 
 void PSX::Write32(uint32_t address, const uint32_t data) {
     address = address & region_mask[address >> 29];
-    if (address & 0x03) {
-        printf("Warning: misaligned memory access of size 32 at address %08x\n", address);
-        return;
-    }
 
     if (address >= RAM_START_ADDRESS
         && address + 4 <= RAM_START_ADDRESS + RAM_SIZE) {
@@ -130,11 +126,15 @@ void PSX::Write32(uint32_t address, const uint32_t data) {
     } else if (address >= DMA_START
         && address + 4 <= DMA_START + DMA_SIZE) {
         sys_dma->Write32(address - DMA_START, data);
+    } else if (address >= GPU_START
+        && address + 4 <= GPU_START + GPU_SIZE) {
+        sys_gpu->Write32(address - GPU_START, data);
+    } else if (address >= TIMER_START
+        && address + 4 <= TIMER_START + TIMER_SIZE) {
+        sys_timers->Write32(address - TIMER_START, data);
     } else {
         printf("Unhandled write of size 32 at address %08x, data %08x\n", address, data);
-    }
-    if (data == 0x000056B5) {
-        printf("ok\n");
+        assert(false);
     }
 }
 
@@ -174,6 +174,7 @@ void PSX::Write16(uint32_t address, const uint16_t data) {
         printf("Write to Expansion 2\n");
     } else {
         printf("Unhandled write of size 16 at address %08x, data %08x\n", address, data);
+        //assert(false);
     }
 }
 
@@ -198,7 +199,11 @@ void PSX::Write8(uint32_t address, const uint8_t data) {
     } else if (address >= EXPANSION2_START
         && address + 4 <= EXPANSION2_START + EXPANSION2_SIZE) {
         printf("Write to Expansion 2\n");
+    } else if (address >= CDROM_START
+        && address + 1 <= CDROM_START + CDROM_SIZE) {
+        sys_cdrom->Write8(address - CDROM_START, data);
     } else {
         printf("Unhandled write of size 8 at address %08x, data %08x\n", address, data);
+        //assert(false);
     }
 }

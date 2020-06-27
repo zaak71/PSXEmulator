@@ -10,6 +10,7 @@
 #include "DMA.h"
 #include "Timers.h"
 #include "GPU.h"
+#include "cdrom.h"
 
 class PSX {
 public:
@@ -31,6 +32,7 @@ private:
     std::unique_ptr<DMA> sys_dma;
     std::unique_ptr<Timers> sys_timers;
     std::unique_ptr<GPU> sys_gpu;
+    std::unique_ptr<cdrom> sys_cdrom;
 
     const uint32_t region_mask[8] = {
     0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,     // KUSEG

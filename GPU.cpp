@@ -17,3 +17,18 @@ uint32_t GPU::Read32(uint32_t offset) const {
 			break;
 	}
 }
+
+void GPU::Write32(uint32_t offset, uint32_t data) {
+	switch (offset) {
+	case 0:
+		printf("GP0 Command (CPU): %08x\n", data);
+		break;
+	case 4:
+		printf("GP1 Command (CPU): %08x\n", data);
+		break;
+	default:
+		printf("Invalid access to GPU at offset %02x\n", offset);
+		assert(false);
+		break;
+	}
+}
