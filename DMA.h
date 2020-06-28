@@ -4,12 +4,13 @@
 #include <array>
 #include "DMAChannel.h"
 #include "RAM.h"
+#include "IRQ.h"
 
 class PSX;
 
 class DMA {
 public:
-    void Init(RAM* ram, PSX* sys);
+    void Init(RAM* ram, PSX* sys, IRQ* irq);
     void Write32(uint32_t offset, uint32_t data);
     uint32_t Read32(uint32_t offset) const;
 
@@ -29,8 +30,10 @@ private:
 
     PSX* sys;
     RAM* ram;
+    IRQ* irq;
     std::array<DMAChannel, 7> channels;
 
+    void TriggerInterrupt();
     bool GetMasterFlag() const;
     uint32_t GetInterruptReg() const;
 
@@ -52,8 +55,8 @@ private:
             uint32_t DMA5_enable : 1;
             uint32_t DMA6_priority : 3;     // 6: OTC (GPU related)
             uint32_t DMA6_enable : 1;
-        } reg_flags;
-    } DMA_control_reg;
+        };
+    } DMA_control;
 
     union InterruptReg {
         uint32_t reg = 0;
@@ -64,7 +67,7 @@ private:
             uint32_t irq_master_enable : 1; // 0=None, 1=Enable
             uint32_t irq_flags : 7;         // 0=None, 1=IRQ (write 1 to reset)
             uint32_t master_flag : 1;       // 0=None, 1=IRQ
-        } flags;
-    } DMA_interrupt_reg;
+        };
+    } DMA_interrupt;
 };
 

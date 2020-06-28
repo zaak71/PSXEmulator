@@ -3,7 +3,7 @@
 #include <assert.h>
 
 CPU::CPU(PSX* system) : system(system), next_inst(0) {
-    PC = 0xBFC00000;
+    PC = current_PC = 0xBFC00000;
     next_PC = PC + 4;
     for (uint32_t& i : registers) {
         i = 0xDEADBEEF;
@@ -20,6 +20,12 @@ void CPU::RunInstruction() {
     if (current_PC & 0x03) {
         HandleException(Exceptions::AddrErrorLoad);
         return;
+    }
+    // Check for any interrupts that need to be handled
+    if (COP0.status.current_interrupt_enable) {
+        if (COP0.status.interrupt_mask && COP0.cause.interrupt_pending) {
+            HandleException(Exceptions::Interrupt);
+        }
     }
     uint32_t inst = system->Read32(PC);
     PC = next_PC;
@@ -270,20 +276,20 @@ void CPU::HandleCop0(const Instruction& inst) {
 }
 
 void CPU::HandleException(const Exceptions& cause) {
-    uint32_t handler = COP0.status_register.status_flags.boot_exception_vector ? 0xBFC00180 : 0x80000080;
-    uint32_t mode = COP0.status_register.reg & 0x3F;
-    COP0.status_register.reg &= ~0x3F;
-    COP0.status_register.reg |= ((mode << 2) & 0x3F);
-    COP0.cause_register.reg &= ~0x7C;
-    COP0.cause_register.reg = ((uint32_t)cause << 2);
+    uint32_t handler = COP0.status.boot_exception_vector ? 0xBFC00180 : 0x80000080;
+    uint32_t mode = COP0.status.reg & 0x3F;
+    COP0.status.reg &= ~0x3F;
+    COP0.status.reg |= ((mode << 2) & 0x3F);
+    COP0.cause.reg &= ~0x7C;
+    COP0.cause.reg = ((uint32_t)cause << 2);
     COP0.epc = current_PC;
 
     if (delay_slot) {
         COP0.epc -= 4;
-        COP0.cause_register.reg |= (1 << 31);
+        COP0.cause.reg |= (1 << 31);
     }
     else {
-        COP0.cause_register.reg &= ~(1 << 31);
+        COP0.cause.reg &= ~(1 << 31);
     }
 
     PC = handler;
@@ -687,13 +693,13 @@ void CPU::mtc0(const Instruction& inst) {
 
 void CPU::rfe(const Instruction& inst) {
     ExecutePendingLoad();
-    uint32_t mode = COP0.status_register.reg & 0x3F;
-    COP0.status_register.reg &= ~(0x3F);
-    COP0.status_register.reg |= (mode >> 2);
+    uint32_t mode = COP0.status.reg & 0x3F;
+    COP0.status.reg &= ~(0x3F);
+    COP0.status.reg |= (mode >> 2);
 }
 
 void CPU::lb(const Instruction& inst) {
-    if (COP0.status_register.status_flags.isolate_cache != 0) {
+    if (COP0.status.isolate_cache != 0) {
         ExecutePendingLoad();
         return;
     }
@@ -706,7 +712,7 @@ void CPU::lb(const Instruction& inst) {
 }
 
 void CPU::lh(const Instruction& inst) {
-    if (COP0.status_register.status_flags.isolate_cache != 0) {
+    if (COP0.status.isolate_cache != 0) {
         ExecutePendingLoad();
         return;
     }
@@ -723,7 +729,7 @@ void CPU::lh(const Instruction& inst) {
 }
 
 void CPU::lw(const Instruction& inst) {
-    if (COP0.status_register.status_flags.isolate_cache != 0) {
+    if (COP0.status.isolate_cache != 0) {
         ExecutePendingLoad();
         return;
     }
@@ -743,7 +749,7 @@ void CPU::lwl(const Instruction& inst) {
     uint32_t address = registers[inst.rs()] + (int32_t)((int16_t)inst.imm16());
     uint32_t rt = inst.rt();
     ExecutePendingLoad();
-    if (COP0.status_register.status_flags.isolate_cache != 0) {
+    if (COP0.status.isolate_cache != 0) {
         return;
     }
     uint32_t rt_data = registers[rt];
@@ -770,7 +776,7 @@ void CPU::lwl(const Instruction& inst) {
 }
 
 void CPU::lbu(const Instruction& inst) {
-    if (COP0.status_register.status_flags.isolate_cache != 0) {
+    if (COP0.status.isolate_cache != 0) {
         ExecutePendingLoad();
         return;
     }
@@ -783,7 +789,7 @@ void CPU::lbu(const Instruction& inst) {
 }
 
 void CPU::lhu(const Instruction& inst) {
-    if (COP0.status_register.status_flags.isolate_cache != 0) {
+    if (COP0.status.isolate_cache != 0) {
         ExecutePendingLoad();
         return;
     }
@@ -803,7 +809,7 @@ void CPU::lwr(const Instruction& inst) {
     uint32_t address = registers[inst.rs()] + (int32_t)((int16_t)inst.imm16());
     uint32_t rt = inst.rt();
     ExecutePendingLoad();
-    if (COP0.status_register.status_flags.isolate_cache != 0) {
+    if (COP0.status.isolate_cache != 0) {
         return;
     }
     uint32_t rt_data = registers[rt];
@@ -830,7 +836,7 @@ void CPU::lwr(const Instruction& inst) {
 }
 
 void CPU::sb(const Instruction& inst) {
-    if (COP0.status_register.status_flags.isolate_cache != 0) {
+    if (COP0.status.isolate_cache != 0) {
         ExecutePendingLoad();
         return;
     }
@@ -841,7 +847,7 @@ void CPU::sb(const Instruction& inst) {
 }
 
 void CPU::sh(const Instruction& inst) {
-    if (COP0.status_register.status_flags.isolate_cache != 0) {
+    if (COP0.status.isolate_cache != 0) {
         ExecutePendingLoad();
         return;
     }
@@ -863,7 +869,7 @@ void CPU::swl(const Instruction& inst) {
     uint32_t data = registers[inst.rt()];
     uint32_t current_data = system->Read32(aligned_addr);
     ExecutePendingLoad();
-    if (COP0.status_register.status_flags.isolate_cache != 0) {
+    if (COP0.status.isolate_cache != 0) {
         return;
     }
     switch (address % 4) {
@@ -887,7 +893,7 @@ void CPU::swl(const Instruction& inst) {
 }
 
 void CPU::sw(const Instruction& inst) {
-    if (COP0.status_register.status_flags.isolate_cache != 0) {
+    if (COP0.status.isolate_cache != 0) {
         ExecutePendingLoad();
         return;
     }
@@ -907,7 +913,7 @@ void CPU::swr(const Instruction& inst) {
     uint32_t data = registers[inst.rt()];
     uint32_t current_data = system->Read32(aligned_addr);
     ExecutePendingLoad();
-    if (COP0.status_register.status_flags.isolate_cache != 0) {
+    if (COP0.status.isolate_cache != 0) {
         return;
     }
     switch (address % 4) {

@@ -4,9 +4,12 @@
 #include "cop0.h"
 
 class PSX;
+class IRQ;
 
 class CPU {
 public:
+    friend class IRQ;
+
     CPU(PSX* system);
     void RunInstruction();
     void DecodeAndExecute(uint32_t instruction);
@@ -31,7 +34,7 @@ private:
     void HandleCop0(const Instruction& inst);
 
     enum class Exceptions : uint32_t {
-        Int = 0,            // Interrupt (Hardware)
+        Interrupt = 0,      // Interrupt (Hardware)
         AddrErrorLoad = 4,  // Address Error (load or inst. fetch)
         AddrErrorStore = 5, // Address Error (store)
         IBE = 6,            // Bus Error (inst. fetch)

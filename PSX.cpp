@@ -8,14 +8,14 @@ PSX::PSX() {
     sys_cpu = std::make_unique<CPU>(this);
     sys_ram = std::make_unique<RAM>();
     sys_spu = std::make_unique<SPU>();
-    sys_irq = std::make_unique<IRQ>();
+    sys_irq = std::make_unique<IRQ>(sys_cpu.get());
     sys_dma = std::make_unique<DMA>();
     sys_timers = std::make_unique<Timers>();
     sys_gpu = std::make_unique<GPU>();
     sys_cdrom = std::make_unique<cdrom>();
 
     sys_bios->LoadBios("bios/SCPH1001.BIN");
-    sys_dma->Init(sys_ram.get(), this);
+    sys_dma->Init(sys_ram.get(), this, sys_irq.get());
 }
 
 void PSX::Run() {

@@ -4,9 +4,14 @@
 #include <cassert>
 #include <cstdio>
 
-void DMA::Init(RAM* ram, PSX* sys) {
+void DMA::Init(RAM* ram, PSX* sys, IRQ* irq) {
     this->ram = ram;
     this->sys = sys;
+    this->irq = irq;
+}
+
+void DMA::TriggerInterrupt() {
+    irq->TriggerIRQ(3);
 }
 
 void DMA::Write32(uint32_t offset, uint32_t data) {
@@ -33,9 +38,9 @@ void DMA::Write32(uint32_t offset, uint32_t data) {
     }
     else {
         if (offset == 0x70) {       // Write to control register
-            DMA_control_reg.reg = data;
+            DMA_control.reg = data;
         } else if (offset == 0x74) {  // Write to interrupt register
-            DMA_interrupt_reg.reg = data;
+            DMA_interrupt.reg = data;
         } else {
             printf("Unhandled Write to DMA at offset %08x\n", offset);
             assert(false);
@@ -65,7 +70,7 @@ uint32_t DMA::Read32(uint32_t offset) const {
     }
     else {
         if (offset == 0x70) {    // Read control register
-            return DMA_control_reg.reg;
+            return DMA_control.reg;
         }
         else if (offset == 0x74) {    // Read interrupt register
             return GetInterruptReg();
@@ -79,14 +84,14 @@ uint32_t DMA::Read32(uint32_t offset) const {
 }
 
 bool DMA::GetMasterFlag() const {
-    return DMA_interrupt_reg.flags.force_irq 
-        || (DMA_interrupt_reg.flags.irq_master_enable 
-        && (DMA_interrupt_reg.flags.irq_flags && DMA_interrupt_reg.flags.irq_enable));
+    return DMA_interrupt.force_irq 
+        || (DMA_interrupt.irq_master_enable 
+        && (DMA_interrupt.irq_flags && DMA_interrupt.irq_enable));
 }
 
 uint32_t DMA::GetInterruptReg() const {
     bool master = GetMasterFlag();
-    uint32_t reg = DMA_interrupt_reg.reg;
+    uint32_t reg = DMA_interrupt.reg;
     if (master) {
         reg |= (1 << 31);
     }
@@ -113,7 +118,12 @@ void DMA::DoTransfer(uint32_t channel) {
             printf("Attempt to initiate DMA Transfer: mode %s, channel %d\n", mode, channel);
             assert(false);
             break;
-        }
+    }
+    // Check if channel is enabled
+    if (DMA_interrupt.reg & (0x10000 << channel)) {
+        DMA_interrupt.reg |= (0x1000000 << channel);
+        TriggerInterrupt();
+    }
 }
 
 void DMA::DoManualTransfer(uint32_t channel) {
