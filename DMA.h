@@ -5,12 +5,13 @@
 #include "DMAChannel.h"
 #include "RAM.h"
 #include "IRQ.h"
+#include "GPU.h"
 
 class PSX;
 
 class DMA {
 public:
-    void Init(RAM* ram, PSX* sys, IRQ* irq);
+    void Init(RAM* ram, PSX* sys, IRQ* irq, GPU* gpu);
     void Write32(uint32_t offset, uint32_t data);
     uint32_t Read32(uint32_t offset) const;
 
@@ -31,6 +32,7 @@ private:
     PSX* sys;
     RAM* ram;
     IRQ* irq;
+    GPU* gpu;
     std::array<DMAChannel, 7> channels;
 
     void TriggerInterrupt();

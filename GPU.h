@@ -6,9 +6,47 @@ class GPU {
 public:
     uint32_t Read32(uint32_t offset) const;
     void Write32(uint32_t offset, uint32_t data);
+
+    void GP0Command(uint32_t command);
+    void GP1Command(uint32_t command);
 private:
+    uint32_t commands_left = 0;
+
+    // GP0 commands
+    void DrawModeSetting(uint32_t command);
+    void TexModeSetting(uint32_t command);
+    void SetDrawingAreaTopLeft(uint32_t command);
+    void SetDrawingAreaBottomRight(uint32_t command);
+    void SetDrawingOffset(uint32_t command);
+    void MaskBitSetting(uint32_t command);
+    
+    // GP1 Commands
+    void ResetGPU();
+    void SetDMADirection(uint32_t command);
+    void SetStartDisplayArea(uint32_t command);
+    void SetHorizDisplayRange(uint32_t command);
+    void SetVertDisplayRange(uint32_t command);
+    void SetDisplayMode(uint32_t command);
+
+    uint32_t disp_start_x = 0;          // (0-1023) halfword addr in VRAM
+    uint32_t disp_start_y = 0;          // (0-512) scanline addr in VRAM
+    uint32_t horiz_disp_x1 = 0;
+    uint32_t horiz_disp_x2 = 0;
+    uint32_t vert_disp_y1 = 0;
+    uint32_t vert_disp_y2 = 0;
+    uint32_t tex_window_mask_x = 0;     // in 8 pixel steps
+    uint32_t tex_window_mask_y = 0;     // in 8 pixel steps
+    uint32_t tex_window_offset_x = 0;   // in 8 pixel steps
+    uint32_t tex_window_offset_y = 0;   // in 8 pixel steps
+    uint32_t drawing_area_top = 0;
+    uint32_t drawing_area_bottom = 0;
+    uint32_t drawing_area_left = 0;
+    uint32_t drawing_area_right = 0;
+    int16_t x_offset = 0;               // -1024...1023
+    int16_t y_offset = 0;               // -1024...1023
+
     union Status {
-        uint32_t reg = 0x1C802000;
+        uint32_t reg = 0x14802000;
         struct {
             uint32_t tex_page_x_base : 4;		// N*64
             uint32_t tex_page_y_base : 1;		// 0 or 256
@@ -22,7 +60,7 @@ private:
             uint32_t reverse_flag : 1;			// 0=Normal, 1=Distorted
             uint32_t tex_disable : 1;			// 0=Normal, 1=Disable Textures
             uint32_t horiz_res_2 : 1;			// 0=horiz_res_1, 1=368
-            uint32_t horiz_res_1 : 1;			// 0..3=256, 320, 512, 640
+            uint32_t horiz_res_1 : 2;			// 0..3=256, 320, 512, 640
             uint32_t vert_res : 1;				// 0=240, 1=480
             uint32_t video_mode : 1;			// 0=NTSC/60Hz, 1=PAL/50Hz
             uint32_t disp_area_depth : 1;		// 0=15 bit, 1=24
@@ -35,7 +73,7 @@ private:
             uint32_t ready_receive_dma : 1;		// 0=No, 1=Ready
             uint32_t dma_dir : 2;				// 0..3=Off, ?, CPU->GP0, GPUREAD->CPU
             uint32_t draw_even_odd_lines : 1;   // 0=Even/Vblank, 1=Odd
-        } flags;
+        };
     } GPUSTAT;
 };
 

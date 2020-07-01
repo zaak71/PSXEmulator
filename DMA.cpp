@@ -4,10 +4,11 @@
 #include <cassert>
 #include <cstdio>
 
-void DMA::Init(RAM* ram, PSX* sys, IRQ* irq) {
+void DMA::Init(RAM* ram, PSX* sys, IRQ* irq, GPU* gpu) {
     this->ram = ram;
     this->sys = sys;
     this->irq = irq;
+    this->gpu = gpu;
 }
 
 void DMA::TriggerInterrupt() {
@@ -154,6 +155,7 @@ void DMA::DoManualTransfer(uint32_t channel) {
             for (uint32_t i = 0; i < size; i++, addr += inc) {
                 uint32_t cmd = sys->Read32(addr);
                 printf("GP0 command (Manual): %08x\n", cmd);
+                gpu->GP0Command(cmd);
             }
             curr_channel.FinishTransfer();
         } else {
@@ -181,6 +183,7 @@ void DMA::DoLinkedTransfer(uint32_t channel) {
                     addr = (addr + inc) & 0x00FFFFFC;
                     uint32_t cmd = sys->Read32(addr);
                     printf("GPU command (LL): %08x\n", cmd);
+                    gpu->GP0Command(cmd);
                 }
                 addr = header & 0x00FFFFFF;
             }

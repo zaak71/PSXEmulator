@@ -15,7 +15,7 @@ PSX::PSX() {
     sys_cdrom = std::make_unique<cdrom>();
 
     sys_bios->LoadBios("bios/SCPH1001.BIN");
-    sys_dma->Init(sys_ram.get(), this, sys_irq.get());
+    sys_dma->Init(sys_ram.get(), this, sys_irq.get(), sys_gpu.get());
 }
 
 void PSX::Run() {
