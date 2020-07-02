@@ -1,16 +1,33 @@
 #pragma once
 
 #include <cstdint>
+#include <deque>
+#include <array>
+
+#include "GPUCommands.h"
 
 class GPU {
 public:
+    void Cycle();
+
     uint32_t Read32(uint32_t offset) const;
     void Write32(uint32_t offset, uint32_t data);
 
     void GP0Command(uint32_t command);
     void GP1Command(uint32_t command);
 private:
+    const int kCyclesPerFrame = 33868800 / 60;
+    int cycles_ran = 0;
+    int frames = 0;
+
+    std::array<uint16_t, 1024 * 512> vram{};
+
     uint32_t commands_left = 0;
+    std::deque<uint32_t> command_fifo = {};
+    CommandType curr_cmd = CommandType::Other;
+    CopyDirection copy_dir = CopyDirection::None;
+
+    int GetArgCount(uint8_t opcode) const;
 
     // GP0 commands
     void DrawModeSetting(uint32_t command);
@@ -19,6 +36,7 @@ private:
     void SetDrawingAreaBottomRight(uint32_t command);
     void SetDrawingOffset(uint32_t command);
     void MaskBitSetting(uint32_t command);
+    void CopyRectCPUtoVRAM(uint32_t data);
     
     // GP1 Commands
     void ResetGPU();
@@ -45,8 +63,13 @@ private:
     int16_t x_offset = 0;               // -1024...1023
     int16_t y_offset = 0;               // -1024...1023
 
+    uint16_t transfer_start_x = 0;
+    uint16_t transfer_start_y = 0;
+    uint16_t transfer_width = 0;
+    uint16_t transfer_height = 0;
+
     union Status {
-        uint32_t reg = 0x14802000;
+        uint32_t reg = 0x1C802000;
         struct {
             uint32_t tex_page_x_base : 4;		// N*64
             uint32_t tex_page_y_base : 1;		// 0 or 256

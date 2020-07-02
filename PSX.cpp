@@ -20,6 +20,7 @@ PSX::PSX() {
 
 void PSX::Run() {
     sys_cpu->RunInstruction();
+    sys_gpu->Cycle();
 }
 
 uint8_t PSX::Read8(uint32_t address) const {
@@ -174,7 +175,7 @@ void PSX::Write16(uint32_t address, const uint16_t data) {
         printf("Write to Expansion 2\n");
     } else {
         printf("Unhandled write of size 16 at address %08x, data %08x\n", address, data);
-        //assert(false);
+        assert(false);
     }
 }
 
@@ -204,6 +205,6 @@ void PSX::Write8(uint32_t address, const uint8_t data) {
         sys_cdrom->Write8(address - CDROM_START, data);
     } else {
         printf("Unhandled write of size 8 at address %08x, data %08x\n", address, data);
-        //assert(false);
+        assert(false);
     }
 }

@@ -2,13 +2,29 @@
 #include <cassert>
 #include <cstdio>
 
+void GPU::Cycle() {
+	cycles_ran++;
+	if (cycles_ran >= kCyclesPerFrame) {
+		cycles_ran = 0;
+		frames++;
+		if (frames % 2 == 0) {
+			GPUSTAT.draw_even_odd_lines = 0;
+		} else {
+			GPUSTAT.draw_even_odd_lines	 = 1;
+		}
+		//printf("Frame rendered here\n");
+	}
+
+}
+
 uint32_t GPU::Read32(uint32_t offset) const {
 	switch (offset) {
 		case 0:
 			return 0x00000000;
 			break;
 		case 4:
-			return GPUSTAT.reg;
+			// HACK: hardcode bit 19 to zero
+			return GPUSTAT.reg & ~(1 << 19);
 			break;
 		default:
 			printf("Invalid access to GPU at offset %02x\n", offset);
@@ -37,32 +53,105 @@ void GPU::Write32(uint32_t offset, uint32_t data) {
 
 void GPU::GP0Command(uint32_t command) {
 	uint32_t opcode = command >> 24;
-	switch (opcode) {
-		case 0x00:	// nop, do nothing
-			break;
-		case 0xE1:
-			DrawModeSetting(command);
-			break;
-		case 0xE2:
-			TexModeSetting(command);
-			break;
-		case 0xE3:
-			SetDrawingAreaTopLeft(command);
-			break;
-		case 0xE4:
-			SetDrawingAreaBottomRight(command);
-			break;
-		case 0xE5:
-			SetDrawingOffset(command);
-			break;
-		case 0xE6:
-			MaskBitSetting(command);
-			break;
-		default:
-			printf("Unhandled GP0 command: opcode %02x\n", opcode);
-			assert(false);
-			break;
+	
+	if (curr_cmd == CommandType::Other) {
+		command_fifo.clear();
+		command_fifo.push_back(command);
+
+		switch (opcode) {
+			case 0x00:	// nop, do nothing
+				break;
+			case 0x01:	// Clear Texture cache, do nothing for now
+				break;
+			case 0x28:
+			case 0x2C:
+			case 0x30:
+			case 0x38:
+				curr_cmd = CommandType::DrawPolygon;
+				commands_left = GetArgCount(opcode) - 1;
+				break;
+			case 0xA0:
+				commands_left = 2;
+				curr_cmd = CommandType::CopyRectangle;
+				copy_dir = CopyDirection::CPUtoVRAM;
+				break;
+			case 0xC0:
+				commands_left = 2;
+				curr_cmd = CommandType::CopyRectangle;
+				copy_dir = CopyDirection::VRAMtoCPU;
+				break;
+			case 0xE1:
+				DrawModeSetting(command);
+				break;
+			case 0xE2:
+				TexModeSetting(command);
+				break;
+			case 0xE3:
+				SetDrawingAreaTopLeft(command);
+				break;
+			case 0xE4:
+				SetDrawingAreaBottomRight(command);
+				break;
+			case 0xE5:
+				SetDrawingOffset(command);
+				break;
+			case 0xE6:
+				MaskBitSetting(command);
+				break;
+			default:
+				printf("Unhandled GP0 command: opcode %02x\n", opcode);
+				assert(false);
+				break;
+		}
+		return;
 	}
+
+	if (curr_cmd == CommandType::TransferringCPUtoVRAM) {
+		CopyRectCPUtoVRAM(command);
+		return;
+	}
+
+	if (commands_left != 0) {
+		command_fifo.push_back(command);
+		commands_left--;
+	}
+
+	if (commands_left != 0) {
+		return;
+	}
+
+	// Now all the data for drawing or copy params is received
+	if (curr_cmd == CommandType::DrawPolygon) {
+		printf("Drawing polygon\n");
+		curr_cmd = CommandType::Other;
+	} else if (curr_cmd == CommandType::CopyRectangle) {
+		uint32_t coords = command_fifo[1];
+		transfer_start_x = coords & 0xFFFFu;
+		transfer_start_y = (coords >> 16) & 0xFFFFu;
+		uint32_t size = command_fifo[2];
+		transfer_width = size & 0xFFFFu;
+		transfer_height = (size >> 16) & 0xFFFFu;
+		size = transfer_width * transfer_height;
+		if (size % 2 == 1) {
+			size++;
+		}
+		if (copy_dir == CopyDirection::CPUtoVRAM) {
+			printf("Copying Rectangle from CPU to VRAM\n");
+			commands_left = size / 2;
+			curr_cmd = CommandType::TransferringCPUtoVRAM;
+		} else if (copy_dir == CopyDirection::VRAMtoCPU) {
+			printf("Copying Rectangle from VRAM to CPU\n");
+			curr_cmd = CommandType::Other;
+		} else {
+			printf("Unhandled Reactangle Copy\n");
+			assert(false);
+		}
+		
+	} else {
+		printf("Unhandled GPU Draw\n");
+		assert(false);
+	}
+	
 }
 
 void GPU::GP1Command(uint32_t command) {
@@ -70,6 +159,16 @@ void GPU::GP1Command(uint32_t command) {
 	switch (opcode) {
 		case 0x00:
 			ResetGPU();
+			break;
+		case 0x01:
+			command_fifo.clear();
+			commands_left = 0;
+			curr_cmd = CommandType::Other;
+		case 0x02:
+			GPUSTAT.irq = 0;
+			break;
+		case 0x03:
+			GPUSTAT.disp_enable = command & 0x01;
 			break;
 		case 0x04:
 			SetDMADirection(command);
@@ -94,21 +193,6 @@ void GPU::GP1Command(uint32_t command) {
 }
 
 void GPU::DrawModeSetting(uint32_t command) {
-	union DrawMode {
-		uint32_t reg = 0;
-		struct {
-			uint32_t tex_page_x_base : 4;		// N*64
-			uint32_t tex_page_y_base : 1;		// 0 or 256
-			uint32_t semi_transparency : 2;		// 0..3=B/2+F/2, B+F, B-F, B+F/4
-			uint32_t tex_page_colors : 2;		// 0..2=4, 8, 15 bits
-			uint32_t dither : 1;				// 0=Off/Strip LSBs, 1=Enabled
-			uint32_t draw_to_disp_area : 1;		// 0=Prohibited, 1=Allowed
-			uint32_t tex_disable : 1;			// 0=Normal, 1=Disable Textures
-			uint32_t tex_rect_x_flip : 1;		// BIOS sets this on power up?
-			uint32_t tex_rect_y_flip : 1;		// BIOS sets this on GPUSTAT.13?
-			uint32_t : 18;
-		};
-	};
 	DrawMode mode {command};
 	GPUSTAT.reg &= ~0x3FFu;
 	GPUSTAT.reg |= (command & 0x3FFu);
@@ -142,6 +226,13 @@ void GPU::SetDrawingOffset(uint32_t command) {
 void GPU::MaskBitSetting(uint32_t command) {
 	GPUSTAT.set_mask_bit = command & 0x1;
 	GPUSTAT.draw_pixels = (command >> 1) & 0x1;
+}
+
+void GPU::CopyRectCPUtoVRAM(uint32_t data) {
+	commands_left--;
+	if (commands_left == 0) {
+		curr_cmd = CommandType::Other;
+	}
 }
 
 void GPU::ResetGPU() {
@@ -198,4 +289,19 @@ void GPU::SetDisplayMode(uint32_t command) {
 	GPUSTAT.vert_interlace = (command >> 5) & 0x1;
 	GPUSTAT.horiz_res_2 = (command >> 6) & 0x1;
 	GPUSTAT.reverse_flag = (command >> 7) & 0x1;
+}
+
+int GPU::GetArgCount(uint8_t opcode) const {
+	if (opcode >= 0x20 && opcode < 0x40) {
+		PolygonArgs args{ opcode };
+		return args.GetNumArgs();
+	} else if (opcode >= 0x40 && opcode < 0x60) {
+		LineArgs args{ opcode };
+		return args.GetNumArgs();
+	} else if (opcode >= 0x60 && opcode < 0x80) {
+		RectangleArgs args{ opcode };
+		return args.GetNumArgs();
+	} else {	// Should not reach here
+		return 0;
+	}
 }

@@ -160,6 +160,7 @@
     <ClInclude Include="DMA.h" />
     <ClInclude Include="DMAChannel.h" />
     <ClInclude Include="GPU.h" />
+    <ClInclude Include="GPUCommands.h" />
     <ClInclude Include="instruction.h" />
     <ClInclude Include="IRQ.h" />
     <ClInclude Include="PSX.h" />
