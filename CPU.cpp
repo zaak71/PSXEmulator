@@ -17,6 +17,8 @@ CPU::CPU(PSX* system) : system(system), next_inst(0) {
 
 void CPU::RunInstruction() {
     current_PC = PC;
+    delay_slot = branch;
+    branch = false;
     if (current_PC & 0x03) {
         HandleException(Exceptions::AddrErrorLoad);
         return;
@@ -30,8 +32,6 @@ void CPU::RunInstruction() {
     uint32_t inst = system->Read32(PC);
     PC = next_PC;
     next_PC += 4;
-    delay_slot = branch;
-    branch = false;
     DecodeAndExecute(inst);
 }
 
@@ -280,10 +280,13 @@ void CPU::HandleException(const Exceptions& cause) {
     uint32_t mode = COP0.status.reg & 0x3F;
     COP0.status.reg &= ~0x3F;
     COP0.status.reg |= ((mode << 2) & 0x3F);
-    COP0.cause.reg &= ~0x7C;
-    COP0.cause.reg = ((uint32_t)cause << 2);
+    COP0.cause.reg &= 0x0000FF00;
+    COP0.cause.reg |= (((uint32_t)cause) << 2);
     COP0.epc = current_PC;
-
+    
+    if (cause == Exceptions::Interrupt) {
+        COP0.epc = PC;
+    }
     if (delay_slot) {
         COP0.epc -= 4;
         COP0.cause.reg |= (1 << 31);

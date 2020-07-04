@@ -9,7 +9,7 @@ public:
     uint8_t Read8(uint32_t offset);
 private:
     union Status {
-        uint8_t reg = 0;
+        uint8_t reg = 0x18;
         struct {
             uint8_t index : 2;
             uint8_t ADPBUSY : 1;            // 0=Empty

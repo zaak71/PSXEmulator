@@ -16,6 +16,7 @@ PSX::PSX() {
 
     sys_bios->LoadBios("bios/SCPH1001.BIN");
     sys_dma->Init(sys_ram.get(), this, sys_irq.get(), sys_gpu.get());
+    sys_gpu->Init(sys_irq.get());
 }
 
 void PSX::Run() {

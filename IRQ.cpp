@@ -10,12 +10,13 @@ IRQ::IRQ(CPU* cpu) {
 void IRQ::TriggerIRQ(int irq) {
 	assert(irq >= 0 && irq <= 10);
 	i_stat.reg |= (1 << irq);
+	cpu->COP0.cause.interrupt_pending = (i_stat.reg & i_mask.reg) ? 0b100 : 0;
 }
 
 void IRQ::Write32(uint32_t offset, uint32_t data) {
 	switch (offset) {
 		case 0:
-			i_stat.reg = data;
+			i_stat.reg &= data;
 			break;
 		case 4:
 			i_mask.reg = data;

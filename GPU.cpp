@@ -1,6 +1,12 @@
 #include "GPU.h"
+#include "Shapes.h"
 #include <cassert>
 #include <cstdio>
+
+void GPU::Init(IRQ* irq) {
+	vram.fill(0);
+	this->irq = irq;
+}
 
 void GPU::Cycle() {
 	cycles_ran++;
@@ -10,17 +16,18 @@ void GPU::Cycle() {
 		if (frames % 2 == 0) {
 			GPUSTAT.draw_even_odd_lines = 0;
 		} else {
-			GPUSTAT.draw_even_odd_lines	 = 1;
+			GPUSTAT.draw_even_odd_lines = 1;
 		}
-		//printf("Frame rendered here\n");
+		irq->TriggerIRQ(0);
+		printf("Frame rendered here\n");
 	}
 
 }
 
-uint32_t GPU::Read32(uint32_t offset) const {
+uint32_t GPU::Read32(uint32_t offset) {
 	switch (offset) {
 		case 0:
-			return 0x00000000;
+			return ReadVRAM();
 			break;
 		case 4:
 			// HACK: hardcode bit 19 to zero
@@ -32,6 +39,27 @@ uint32_t GPU::Read32(uint32_t offset) const {
 			return 0;
 			break;
 	}
+}
+
+uint32_t GPU::ReadVRAM() {
+	uint32_t data = 0;
+	data = vram[curr_transfer_x + 1024 * curr_transfer_y];
+	if (curr_transfer_x == 1023) {
+		curr_transfer_x = 0;
+		curr_transfer_y++;
+	}
+	else {
+		curr_transfer_x++;
+	}
+	data |= (vram[curr_transfer_x + 1024 * curr_transfer_y] << 16);
+	if (curr_transfer_x == 1023) {
+		curr_transfer_x = 0;
+		curr_transfer_y++;
+	}
+	else {
+		curr_transfer_x++;
+	}
+	return data;
 }
 
 void GPU::Write32(uint32_t offset, uint32_t data) {
@@ -123,14 +151,21 @@ void GPU::GP0Command(uint32_t command) {
 	// Now all the data for drawing or copy params is received
 	if (curr_cmd == CommandType::DrawPolygon) {
 		printf("Drawing polygon\n");
+		uint8_t opcode = command_fifo[0] >> 24;
+		Polygon p(PolygonArgs{opcode}, command_fifo);
+		
 		curr_cmd = CommandType::Other;
 	} else if (curr_cmd == CommandType::CopyRectangle) {
 		uint32_t coords = command_fifo[1];
-		transfer_start_x = coords & 0xFFFFu;
-		transfer_start_y = (coords >> 16) & 0xFFFFu;
+		transfer_start_x = coords & 0x03FFu;
+		transfer_start_y = (coords >> 16) & 0x01FFu;
+		curr_transfer_x = transfer_start_x;
+		curr_transfer_y = transfer_start_y;
 		uint32_t size = command_fifo[2];
 		transfer_width = size & 0xFFFFu;
+		transfer_width = ((transfer_width - 1) & 0x3FFu) + 1;
 		transfer_height = (size >> 16) & 0xFFFFu;
+		transfer_height = ((transfer_height - 1) & 0x1FFu) + 1;
 		size = transfer_width * transfer_height;
 		if (size % 2 == 1) {
 			size++;
@@ -229,6 +264,23 @@ void GPU::MaskBitSetting(uint32_t command) {
 }
 
 void GPU::CopyRectCPUtoVRAM(uint32_t data) {
+	uint16_t data1 = data & 0xFFFFu;
+	uint16_t data2 = (data >> 16) & 0xFFFFu;
+	vram[curr_transfer_x + 1024 * curr_transfer_y] = data1;
+	if (curr_transfer_x == 1023) {
+		curr_transfer_x = 0;
+		curr_transfer_y++;
+	} else {
+		curr_transfer_x++;
+	}
+	vram[curr_transfer_x + 1024 * curr_transfer_y] = data2;
+	if (curr_transfer_x == 1023) {
+		curr_transfer_x = 0;
+		curr_transfer_y++;
+	}
+	else {
+		curr_transfer_x++;
+	}
 	commands_left--;
 	if (commands_left == 0) {
 		curr_cmd = CommandType::Other;

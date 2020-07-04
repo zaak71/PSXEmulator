@@ -4,23 +4,28 @@
 #include <deque>
 #include <array>
 
+#include "IRQ.h"
 #include "GPUCommands.h"
 
 class GPU {
 public:
+    void Init(IRQ* irq);
     void Cycle();
 
-    uint32_t Read32(uint32_t offset) const;
+    uint32_t Read32(uint32_t offset);
     void Write32(uint32_t offset, uint32_t data);
 
     void GP0Command(uint32_t command);
     void GP1Command(uint32_t command);
 private:
+    IRQ* irq;
+    
     const int kCyclesPerFrame = 33868800 / 60;
     int cycles_ran = 0;
     int frames = 0;
 
     std::array<uint16_t, 1024 * 512> vram{};
+    uint32_t ReadVRAM();
 
     uint32_t commands_left = 0;
     std::deque<uint32_t> command_fifo = {};
@@ -67,6 +72,8 @@ private:
     uint16_t transfer_start_y = 0;
     uint16_t transfer_width = 0;
     uint16_t transfer_height = 0;
+    uint16_t curr_transfer_x = 0;
+    uint16_t curr_transfer_y = 0;
 
     union Status {
         uint32_t reg = 0x1C802000;

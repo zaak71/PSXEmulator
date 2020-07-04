@@ -12,7 +12,7 @@ void DMA::Init(RAM* ram, PSX* sys, IRQ* irq, GPU* gpu) {
 }
 
 void DMA::TriggerInterrupt() {
-    irq->TriggerIRQ(3);
+    //irq->TriggerIRQ(3);
 }
 
 void DMA::Write32(uint32_t offset, uint32_t data) {
@@ -145,6 +145,9 @@ void DMA::DoManualTransfer(uint32_t channel) {
                 sys->Write32(addr, src);
             }
             curr_channel.FinishTransfer();
+            if (DMA_interrupt.irq_enable & (1 << channel)) {
+                DMA_interrupt.irq_flags |= (1 << channel);
+            }
         } else {
             const char* mode = DMAChannel::TransferDirToString(transfer_direction);
             printf("Attempt to initiate manual DMA Transfer: direction %s, channel %d\n", mode, channel);
@@ -158,6 +161,9 @@ void DMA::DoManualTransfer(uint32_t channel) {
                 gpu->GP0Command(cmd);
             }
             curr_channel.FinishTransfer();
+            if (DMA_interrupt.irq_enable & (1 << channel)) {
+                DMA_interrupt.irq_flags |= (1 << channel);
+            }
         } else {
             const char* mode = DMAChannel::TransferDirToString(transfer_direction);
             printf("Attempt to initiate manual DMA Transfer: direction %s, channel %d\n", mode, channel);
@@ -189,6 +195,9 @@ void DMA::DoLinkedTransfer(uint32_t channel) {
             }
             curr_channel.dma_base_address = addr;
             curr_channel.FinishTransfer();
+            if (DMA_interrupt.irq_enable & (1 << channel)) {
+                DMA_interrupt.irq_flags |= (1 << channel);
+            }
         } else {
             const char* mode = DMAChannel::TransferDirToString(transfer_direction);
             printf("Attempt to initiate linked DMA Transfer: direction %s, channel %d\n", mode, channel);
