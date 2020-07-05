@@ -7,6 +7,10 @@ void cdrom::Write8(uint32_t offset, uint8_t data) {
     printf("Write of size 8 at CDROM offset %01x, data %02x, index %01x\n", offset, data, status.index);
     if (offset == 0) {
         status.index = data & 0x03;
+    } else if (offset == 2 && status.index == 0) {
+        param_fifo.push_back(data);
+        status.param_fifo_empty = 0;
+        status.param_fifo_full = param_fifo.size() < 16;
     } else if (offset == 2 && status.index == 1) {
         irq_enable = data;
     } else if (offset == 3 && status.index == 1) {

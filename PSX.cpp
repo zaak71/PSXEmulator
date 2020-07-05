@@ -204,6 +204,7 @@ void PSX::Write8(uint32_t address, const uint8_t data) {
     } else if (address >= CDROM_START
         && address + 1 <= CDROM_START + CDROM_SIZE) {
         sys_cdrom->Write8(address - CDROM_START, data);
+        sys_gpu->DumpVRAM();
     } else {
         printf("Unhandled write of size 8 at address %08x, data %08x\n", address, data);
         assert(false);

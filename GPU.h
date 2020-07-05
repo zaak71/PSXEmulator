@@ -17,6 +17,8 @@ public:
 
     void GP0Command(uint32_t command);
     void GP1Command(uint32_t command);
+
+    void DumpVRAM();
 private:
     IRQ* irq;
     
@@ -26,6 +28,7 @@ private:
 
     std::array<uint16_t, 1024 * 512> vram{};
     uint32_t ReadVRAM();
+    
 
     uint32_t commands_left = 0;
     std::deque<uint32_t> command_fifo = {};

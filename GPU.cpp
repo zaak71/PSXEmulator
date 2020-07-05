@@ -2,6 +2,9 @@
 #include "Shapes.h"
 #include <cassert>
 #include <cstdio>
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include <stb_image_write.h>
+#include <vector>
 
 void GPU::Init(IRQ* irq) {
 	vram.fill(0);
@@ -44,22 +47,31 @@ uint32_t GPU::Read32(uint32_t offset) {
 uint32_t GPU::ReadVRAM() {
 	uint32_t data = 0;
 	data = vram[curr_transfer_x + 1024 * curr_transfer_y];
-	if (curr_transfer_x == 1023) {
-		curr_transfer_x = 0;
+	if (curr_transfer_x == transfer_start_x + transfer_width - 1) {
+		curr_transfer_x = transfer_start_x;
 		curr_transfer_y++;
-	}
-	else {
+	} else {
 		curr_transfer_x++;
 	}
 	data |= (vram[curr_transfer_x + 1024 * curr_transfer_y] << 16);
-	if (curr_transfer_x == 1023) {
-		curr_transfer_x = 0;
+	if (curr_transfer_x == transfer_start_x + transfer_width - 1) {
+		curr_transfer_x = transfer_start_x;
 		curr_transfer_y++;
 	}
 	else {
 		curr_transfer_x++;
 	}
 	return data;
+}
+
+void GPU::DumpVRAM() {
+	std::vector<uint8_t> png(1024 * 512 * 3);
+	for (int i = 0; i < vram.size(); i++) {
+		png[i * 3 + 0] = ((vram[i] >> 0) & 0x1F) << 3;
+		png[i * 3 + 1] = ((vram[i] >> 5) & 0x1F) << 3;
+		png[i * 3 + 2] = ((vram[i] >> 10) & 0x1F) << 3;
+	}
+	stbi_write_png("vram.png", 1024, 512, 3, png.data(), 1024 * 3);
 }
 
 void GPU::Write32(uint32_t offset, uint32_t data) {
@@ -267,18 +279,17 @@ void GPU::CopyRectCPUtoVRAM(uint32_t data) {
 	uint16_t data1 = data & 0xFFFFu;
 	uint16_t data2 = (data >> 16) & 0xFFFFu;
 	vram[curr_transfer_x + 1024 * curr_transfer_y] = data1;
-	if (curr_transfer_x == 1023) {
-		curr_transfer_x = 0;
+	if (curr_transfer_x == transfer_start_x + transfer_width - 1) {
+		curr_transfer_x = transfer_start_x;
 		curr_transfer_y++;
 	} else {
 		curr_transfer_x++;
 	}
 	vram[curr_transfer_x + 1024 * curr_transfer_y] = data2;
-	if (curr_transfer_x == 1023) {
-		curr_transfer_x = 0;
+	if (curr_transfer_x == transfer_start_x + transfer_width - 1) {
+		curr_transfer_x = transfer_start_x;
 		curr_transfer_y++;
-	}
-	else {
+	} else {
 		curr_transfer_x++;
 	}
 	commands_left--;
