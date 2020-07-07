@@ -6,6 +6,7 @@
 
 #include "IRQ.h"
 #include "GPUCommands.h"
+#include "Renderer.h"
 
 class GPU {
 public:
@@ -19,16 +20,20 @@ public:
     void GP1Command(uint32_t command);
 
     void DumpVRAM();
+    using VRAM = std::array<uint16_t, 1024 * 512>;
+    const VRAM& GetVRAM() const { return vram; }
+    VRAM& GetVRAM() { return vram; }
+    const TextureWindowSetting& GetTexWindowSetting() const {return tex_window_settings;};
 private:
+    Renderer renderer = Renderer(this);
     IRQ* irq;
     
     const int kCyclesPerFrame = 33868800 / 60;
     int cycles_ran = 0;
     int frames = 0;
 
-    std::array<uint16_t, 1024 * 512> vram{};
-    uint32_t ReadVRAM();
-    
+    VRAM vram{};
+    uint32_t ReadVRAM();    
 
     uint32_t commands_left = 0;
     std::deque<uint32_t> command_fifo = {};
@@ -60,10 +65,7 @@ private:
     uint32_t horiz_disp_x2 = 0;
     uint32_t vert_disp_y1 = 0;
     uint32_t vert_disp_y2 = 0;
-    uint32_t tex_window_mask_x = 0;     // in 8 pixel steps
-    uint32_t tex_window_mask_y = 0;     // in 8 pixel steps
-    uint32_t tex_window_offset_x = 0;   // in 8 pixel steps
-    uint32_t tex_window_offset_y = 0;   // in 8 pixel steps
+    TextureWindowSetting tex_window_settings;
     uint32_t drawing_area_top = 0;
     uint32_t drawing_area_bottom = 0;
     uint32_t drawing_area_left = 0;
@@ -84,7 +86,7 @@ private:
             uint32_t tex_page_x_base : 4;		// N*64
             uint32_t tex_page_y_base : 1;		// 0 or 256
             uint32_t semi_transparency : 2;		// 0..3=B/2+F/2, B+F, B-F, B+F/4
-            uint32_t tex_page_colors : 2;		// 0..2=4, 8, 15 bits
+            TextureDepth tex_page_colors : 2;		// 0..2=4, 8, 15 bits
             uint32_t dither : 1;				// 0=Off/Strip LSBs, 1=Enabled
             uint32_t draw_to_disp_area : 1;		// 0=Prohibited, 1=Allowed
             uint32_t set_mask_bit : 1;			// 0=No, 1=Yes/Mask

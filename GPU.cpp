@@ -1,5 +1,4 @@
 #include "GPU.h"
-#include "Shapes.h"
 #include <cassert>
 #include <cstdio>
 #define STB_IMAGE_WRITE_IMPLEMENTATION
@@ -164,8 +163,8 @@ void GPU::GP0Command(uint32_t command) {
 	if (curr_cmd == CommandType::DrawPolygon) {
 		printf("Drawing polygon\n");
 		uint8_t opcode = command_fifo[0] >> 24;
-		Polygon p(PolygonArgs{opcode}, command_fifo);
-		
+		std::vector<uint32_t> commands(command_fifo.begin(), command_fifo.end());
+		renderer.DrawPolygon(commands);
 		curr_cmd = CommandType::Other;
 	} else if (curr_cmd == CommandType::CopyRectangle) {
 		uint32_t coords = command_fifo[1];
@@ -247,10 +246,7 @@ void GPU::DrawModeSetting(uint32_t command) {
 }
 
 void GPU::TexModeSetting(uint32_t command) {
-	tex_window_mask_x = command & 0x1F;
-	tex_window_mask_y = (command >> 5) & 0x1F;
-	tex_window_offset_x = (command >> 10) & 0x1F;
-	tex_window_offset_y = (command >> 15) & 0x1F;
+	tex_window_settings.reg = command;
 }
 
 void GPU::SetDrawingAreaTopLeft(uint32_t command) {
