@@ -8,6 +8,9 @@
 #include "GPUCommands.h"
 #include "Renderer.h"
 
+#define VRAM_WIDTH      1024
+#define VRAM_HEIGHT     512
+
 class GPU {
 public:
     void Init(IRQ* irq);
@@ -20,9 +23,11 @@ public:
     void GP1Command(uint32_t command);
 
     void DumpVRAM();
-    using VRAM = std::array<uint16_t, 1024 * 512>;
+    using VRAM = std::array<uint16_t, VRAM_WIDTH * VRAM_HEIGHT>;
     const VRAM& GetVRAM() const { return vram; }
     VRAM& GetVRAM() { return vram; }
+    uint16_t GetVRAMFromPos(uint16_t x, uint16_t y) const;
+    void SetVRAMFromPos(uint16_t x, uint16_t y, uint16_t data);
     const TextureWindowSetting& GetTexWindowSetting() const {return tex_window_settings;};
 private:
     Renderer renderer = Renderer(this);
@@ -34,6 +39,7 @@ private:
 
     VRAM vram{};
     uint32_t ReadVRAM();    
+    void MoveVRAMTransferPosition();
 
     uint32_t commands_left = 0;
     std::deque<uint32_t> command_fifo = {};

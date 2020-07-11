@@ -18,9 +18,9 @@ union Color {
         b = ((cmd >> 16) & 0xFFu) >> 3;
     }
     Color(uint8_t r, uint8_t g, uint8_t b) {
-        this->r = r >> 3;
-        this->g = g >> 3;
-        this->b = b >> 3;
+        this->r = r;
+        this->g = g;
+        this->b = b;
     }
 };
 
@@ -58,7 +58,15 @@ union Palette {
         uint16_t : 1;
     };
     Palette() : data(0) {}
-    Palette(uint32_t command) {
-        data = command >> 16;
+    static Palette FromCommand(uint32_t command) {
+        Palette p;
+        p.data = command >> 16;
+        return p;
     }
+};
+
+struct Point {
+    Vertex vertex;
+    Color color;
+    Texcoord texcoord;
 };

@@ -22,6 +22,7 @@ void GPU::Cycle() {
 		}
 		irq->TriggerIRQ(0);
 		printf("Frame rendered here\n");
+		DumpVRAM();
 	}
 
 }
@@ -45,21 +46,10 @@ uint32_t GPU::Read32(uint32_t offset) {
 
 uint32_t GPU::ReadVRAM() {
 	uint32_t data = 0;
-	data = vram[curr_transfer_x + 1024 * curr_transfer_y];
-	if (curr_transfer_x == transfer_start_x + transfer_width - 1) {
-		curr_transfer_x = transfer_start_x;
-		curr_transfer_y++;
-	} else {
-		curr_transfer_x++;
-	}
-	data |= (vram[curr_transfer_x + 1024 * curr_transfer_y] << 16);
-	if (curr_transfer_x == transfer_start_x + transfer_width - 1) {
-		curr_transfer_x = transfer_start_x;
-		curr_transfer_y++;
-	}
-	else {
-		curr_transfer_x++;
-	}
+	data = GetVRAMFromPos(curr_transfer_x, curr_transfer_y);
+	MoveVRAMTransferPosition();
+	data |= (GetVRAMFromPos(curr_transfer_x, curr_transfer_y) << 16);
+	MoveVRAMTransferPosition();
 	return data;
 }
 
@@ -274,20 +264,10 @@ void GPU::MaskBitSetting(uint32_t command) {
 void GPU::CopyRectCPUtoVRAM(uint32_t data) {
 	uint16_t data1 = data & 0xFFFFu;
 	uint16_t data2 = (data >> 16) & 0xFFFFu;
-	vram[curr_transfer_x + 1024 * curr_transfer_y] = data1;
-	if (curr_transfer_x == transfer_start_x + transfer_width - 1) {
-		curr_transfer_x = transfer_start_x;
-		curr_transfer_y++;
-	} else {
-		curr_transfer_x++;
-	}
-	vram[curr_transfer_x + 1024 * curr_transfer_y] = data2;
-	if (curr_transfer_x == transfer_start_x + transfer_width - 1) {
-		curr_transfer_x = transfer_start_x;
-		curr_transfer_y++;
-	} else {
-		curr_transfer_x++;
-	}
+	SetVRAMFromPos(curr_transfer_x, curr_transfer_y, data1);
+	MoveVRAMTransferPosition();
+	SetVRAMFromPos(curr_transfer_x, curr_transfer_y, data2);
+	MoveVRAMTransferPosition();
 	commands_left--;
 	if (commands_left == 0) {
 		curr_cmd = CommandType::Other;
@@ -362,5 +342,23 @@ int GPU::GetArgCount(uint8_t opcode) const {
 		return args.GetNumArgs();
 	} else {	// Should not reach here
 		return 0;
+	}
+}
+
+uint16_t GPU::GetVRAMFromPos(uint16_t x, uint16_t y) const {
+	return vram[VRAM_WIDTH * y + x];
+}
+
+void GPU::SetVRAMFromPos(uint16_t x, uint16_t y, uint16_t data) {
+	vram[VRAM_WIDTH * y + x] = data;
+}
+
+void GPU::MoveVRAMTransferPosition() {
+	if (curr_transfer_x == transfer_start_x + transfer_width - 1) {
+		curr_transfer_x = transfer_start_x;
+		curr_transfer_y++;
+	}
+	else {
+		curr_transfer_x++;
 	}
 }
