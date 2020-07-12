@@ -3,8 +3,20 @@
 #include <cstdio>
 #include <cassert>
 
+void cdrom::Cycle() {
+    if (!irq_fifo.empty()) {
+        if ((irq_enable & 0x7) && (irq_fifo.front() & 0x7)) {
+            irq->TriggerIRQ(2);
+        }
+    }
+}
+
+void cdrom::Init(IRQ* irq) {
+    this->irq = irq;
+}
+
 void cdrom::Write8(uint32_t offset, uint8_t data) {
-    printf("Write of size 8 at CDROM offset %01x, data %02x, index %01x\n", offset, data, status.index);
+    printf("Write of size 8 at CDROM offset %01x, index %01x, data %02x\n", offset, status.index, data);
     if (offset == 0) {
         status.index = data & 0x03;
     } else if (offset == 1 && status.index == 0) {
@@ -61,7 +73,12 @@ uint8_t cdrom::Read8(uint32_t offset) {
 
 void cdrom::ExecuteCommand(uint8_t opcode) {
     switch (opcode) {
-        case 0x19:
+        case 0x01:  // GetStat
+            response_fifo.push_back(status_code.reg);
+            status.response_fifo_empty = 1;
+            irq_fifo.push_back(0x3);
+            break;
+        case 0x19:  // Test
             TestCommand(param_fifo.front());
             param_fifo.pop_front();
             break;

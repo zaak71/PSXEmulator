@@ -4,13 +4,15 @@
 
 class Timers {
 public:
+    void Cycle();
+
     void Write16(uint32_t offset, uint16_t data);
     void Write32(uint32_t offset, uint32_t data);
-    uint16_t Read16(uint32_t offset) const;
-    uint32_t Read32(uint32_t offset) const;
+    uint16_t Read16(uint32_t offset);
+    uint32_t Read32(uint32_t offset);
 private:
-    uint16_t curr_counter_val[3];
-    union {
+    uint32_t curr_counter_val[3];
+    union TimerMode {
         uint16_t reg = 0;
         struct {
             uint16_t sync_enable : 1;   // 0=Free Run, 1=Sync via bit1-2
@@ -33,7 +35,7 @@ private:
             uint16_t reached_tgt : 1;   // 0=No, 1=Yes (Reset After Reading)
             uint16_t reached_ffff : 1;  // 0=No, 1=Yes (Reset After Reading)
             uint16_t : 3;
-        } flags;
+        };
     } counter_mode[3];
     uint16_t target_val[3];
 };
