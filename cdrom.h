@@ -8,6 +8,9 @@ public:
     void Write8(uint32_t offset, uint8_t data);
     uint8_t Read8(uint32_t offset);
 private:
+    void ExecuteCommand(uint8_t opcode);
+    void TestCommand(uint8_t command);
+
     union Status {
         uint8_t reg = 0x18;
         struct {
@@ -25,5 +28,6 @@ private:
 
     std::deque<uint8_t> param_fifo = {};
     std::deque<uint8_t> response_fifo = {};
+    std::deque<uint8_t> irq_fifo = {};
 };
 

@@ -21,8 +21,8 @@ void GPU::Cycle() {
 			GPUSTAT.draw_even_odd_lines = 1;
 		}
 		irq->TriggerIRQ(0);
-		printf("Frame rendered here\n");
-		DumpVRAM();
+		//printf("Frame rendered here\n");
+		//DumpVRAM();
 	}
 
 }
