@@ -11,6 +11,7 @@
 #include "Timers.h"
 #include "GPU.h"
 #include "cdrom.h"
+#include "Joypad.h"
 
 class PSX {
 public:
@@ -33,6 +34,7 @@ private:
     std::unique_ptr<Timers> sys_timers;
     std::unique_ptr<GPU> sys_gpu;
     std::unique_ptr<cdrom> sys_cdrom;
+    std::unique_ptr<Joypad> sys_joypad;
 
     const uint32_t region_mask[8] = {
     0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,     // KUSEG

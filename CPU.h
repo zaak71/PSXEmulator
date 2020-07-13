@@ -2,6 +2,7 @@
 
 #include "instruction.h"
 #include "cop0.h"
+#include "GTE.h"
 
 class PSX;
 class IRQ;
@@ -16,6 +17,7 @@ public:
 private:
     PSX* system = nullptr;
     cop0 COP0;
+    GTE gte;
 
     uint32_t registers[32];
     uint32_t PC, next_PC, hi, lo;
@@ -30,8 +32,6 @@ private:
     // Should be called after an instruction is decoded but before writing
     void ExecutePendingLoad();
     void Branch(int imm);
-
-    void HandleCop0(const Instruction& inst);
 
     enum class Exceptions : uint32_t {
         Interrupt = 0,      // Interrupt (Hardware)
@@ -94,11 +94,17 @@ private:
     void ori(const Instruction& inst);
     void xori(const Instruction& inst);
     void lui(const Instruction& inst);
-    void HandleCop1(const Instruction& inst);
-    void HandleCop3(const Instruction& inst);
+    void HandleCop0(const Instruction& inst);
     void mfc0(const Instruction& inst);
     void mtc0(const Instruction& inst);
     void rfe(const Instruction& inst);
+    void HandleCop1(const Instruction& inst);
+    void HandleCop2(const Instruction& inst);
+    void mfc2(const Instruction& inst);
+    void cfc2(const Instruction& inst);
+    void mtc2(const Instruction& inst);
+    void ctc2(const Instruction& inst);
+    void HandleCop3(const Instruction& inst);
     void lb(const Instruction& inst);
     void lh(const Instruction& inst);
     void lw(const Instruction& inst);

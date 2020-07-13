@@ -13,6 +13,7 @@ PSX::PSX() {
     sys_timers = std::make_unique<Timers>();
     sys_gpu = std::make_unique<GPU>();
     sys_cdrom = std::make_unique<cdrom>();
+    sys_joypad = std::make_unique<Joypad>();
 
     sys_bios->LoadBios("bios/SCPH1001.BIN");
     sys_dma->Init(sys_ram.get(), this, sys_irq.get(), sys_gpu.get());
@@ -175,8 +176,11 @@ void PSX::Write16(uint32_t address, const uint16_t data) {
         && address + 2 <= IRQ_START + IRQ_SIZE) {
         sys_irq->Write16(address - IRQ_START, data);
     } else if (address >= EXPANSION2_START
-        && address + 4 <= EXPANSION2_START + EXPANSION2_SIZE) {
+        && address + 2 <= EXPANSION2_START + EXPANSION2_SIZE) {
         printf("Write to Expansion 2\n");
+    } else if (address >= JOYPAD_START 
+        && address + 2 <= JOYPAD_START + JOYPAD_SIZE) {
+        sys_joypad->Write16(address - JOYPAD_START, data);
     } else {
         printf("Unhandled write of size 16 at address %08x, data %08x\n", address, data);
         assert(false);

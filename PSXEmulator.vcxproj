@@ -148,7 +148,9 @@
     <ClCompile Include="DMA.cpp" />
     <ClCompile Include="DMAChannel.cpp" />
     <ClCompile Include="GPU.cpp" />
+    <ClCompile Include="GTE.cpp" />
     <ClCompile Include="IRQ.cpp" />
+    <ClCompile Include="Joypad.cpp" />
     <ClCompile Include="PSX.cpp" />
     <ClCompile Include="CPU.cpp" />
     <ClCompile Include="main.cpp" />
@@ -166,8 +168,10 @@
     <ClInclude Include="GPU.h" />
     <ClInclude Include="GPUCommands.h" />
     <ClInclude Include="GPUData.h" />
+    <ClInclude Include="GTE.h" />
     <ClInclude Include="instruction.h" />
     <ClInclude Include="IRQ.h" />
+    <ClInclude Include="Joypad.h" />
     <ClInclude Include="PSX.h" />
     <ClInclude Include="Constants.h" />
     <ClInclude Include="CPU.h" />

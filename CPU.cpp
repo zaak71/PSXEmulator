@@ -183,6 +183,9 @@ void CPU::DecodeAndExecute(uint32_t instruction) {
         case 0x11:
             HandleCop1(inst);
             break;
+        case 0x12:
+            HandleCop2(inst);
+            break;
         case 0x13:
             HandleCop3(inst);
             break;
@@ -250,29 +253,6 @@ void CPU::Branch(int imm) {
     branch = true;
     imm = imm << 2;
     next_PC = PC + imm;
-}
-
-void CPU::HandleCop0(const Instruction& inst) {
-    switch (inst.rs() & 0x3F) {
-        case 0x00:
-            mfc0(inst);
-            break;
-        case 0x04:
-            mtc0(inst);
-            break;
-        case 0x10:
-            if ((inst.funct() & 0x3F) == 0x10) {
-                rfe(inst);
-            } else {
-                printf("Unhandled COP0 instruction: %08x\n", inst.inst);
-                assert(false);
-            }
-            break;
-        default:
-            printf("Unhandled COP0 instruction: %08x\n", inst.inst);
-            assert(false);
-            break;
-    }
 }
 
 void CPU::HandleException(const Exceptions& cause) {
@@ -669,14 +649,28 @@ void CPU::lui(const Instruction& inst) {
     registers[0] = 0;
 }
 
-void CPU::HandleCop1(const Instruction& inst) {
-    ExecutePendingLoad();
-    HandleException(Exceptions::CpU);
-}
-
-void CPU::HandleCop3(const Instruction& inst) {
-    ExecutePendingLoad();
-    HandleException(Exceptions::CpU);
+void CPU::HandleCop0(const Instruction& inst) {
+    switch (inst.rs() & 0x3F) {
+        case 0x00:
+            mfc0(inst);
+            break;
+        case 0x04:
+            mtc0(inst);
+            break;
+        case 0x10:
+            if ((inst.funct() & 0x3F) == 0x10) {
+                rfe(inst);
+            }
+            else {
+                printf("Unhandled COP0 instruction: %08x\n", inst.inst);
+                assert(false);
+            }
+            break;
+        default:
+            printf("Unhandled COP0 instruction: %08x\n", inst.inst);
+            assert(false);
+            break;
+    }
 }
 
 void CPU::mfc0(const Instruction& inst) {
@@ -699,6 +693,67 @@ void CPU::rfe(const Instruction& inst) {
     uint32_t mode = COP0.status.reg & 0x3F;
     COP0.status.reg &= ~(0x3F);
     COP0.status.reg |= (mode >> 2);
+}
+
+void CPU::HandleCop1(const Instruction& inst) {
+    ExecutePendingLoad();
+    HandleException(Exceptions::CpU);
+}
+
+void CPU::HandleCop2(const Instruction& inst) {
+    switch (inst.rs()) {
+        case 0x00:
+            mfc2(inst);
+            break;
+        case 0x02:
+            cfc2(inst);
+            break;
+        case 0x04:
+            mtc2(inst);
+            break;
+        case 0x06:
+            ctc2(inst);
+            break;
+        default:
+            printf("Unhandled COP2 instruction: %08x\n", inst.inst);
+            assert(false);
+            break;
+    }
+}
+
+void CPU::mfc2(const Instruction& inst) {
+    uint32_t rt = inst.rt();
+    uint32_t gte_reg = inst.rd();
+    ExecutePendingLoad();
+    pending_reg = rt;
+    is_pending_load = true;
+    pending_load_data = gte.Read(gte_reg);
+}
+
+void CPU::cfc2(const Instruction& inst) {
+    uint32_t rt = inst.rt();
+    uint32_t gte_reg = inst.rd() + 32;
+    ExecutePendingLoad();
+    pending_reg = rt;
+    is_pending_load = true;
+    pending_load_data = gte.Read(gte_reg);
+}
+
+void CPU::mtc2(const Instruction& inst) {
+    uint32_t data = registers[inst.rt()];
+    ExecutePendingLoad();
+    gte.Write(inst.rd(), data);
+}
+
+void CPU::ctc2(const Instruction& inst) {
+    uint32_t data = registers[inst.rt()];
+    ExecutePendingLoad();
+    gte.Write(inst.rd() + 32, data);
+}
+
+void CPU::HandleCop3(const Instruction& inst) {
+    ExecutePendingLoad();
+    HandleException(Exceptions::CpU);
 }
 
 void CPU::lb(const Instruction& inst) {
