@@ -43,6 +43,9 @@ uint8_t PSX::Read8(uint32_t address) const {
     } else if (address >= CDROM_START
         && address + 1 <= CDROM_START + CDROM_SIZE) {
         return sys_cdrom->Read8(address - CDROM_START);
+    } else if (address >= JOYPAD_START
+        && address + 1 <= JOYPAD_START + JOYPAD_SIZE) {
+        return sys_joypad->Read8(address - JOYPAD_START);
     } else {
         printf("Unhandled memory read of size 8 at address %08x\n", address);
         assert(false);
@@ -69,6 +72,12 @@ uint16_t PSX::Read16(uint32_t address) const {
     }  else if (address >= IRQ_START
         && address + 2 <= IRQ_START + IRQ_SIZE) {
         return sys_irq->Read16(address - IRQ_START);
+    } else if (address >= JOYPAD_START
+        && address + 2 <= JOYPAD_START + JOYPAD_SIZE) {
+        return sys_joypad->Read16(address - JOYPAD_START);
+    } else if (address >= TIMER_START
+        && address + 2 <= TIMER_START + TIMER_SIZE) {
+        return sys_timers->Read16(address - TIMER_START);
     } else {
         printf("Unhandled memory access of size 16 at address %08x\n", address);
         assert(false);
@@ -206,11 +215,14 @@ void PSX::Write8(uint32_t address, const uint8_t data) {
         && address + 1 <= CACHE_CONTROL_START + CACHE_CONTROL_SIZE) {
         printf("Write to Cache Control\n");
     } else if (address >= EXPANSION2_START
-        && address + 4 <= EXPANSION2_START + EXPANSION2_SIZE) {
+        && address + 1 <= EXPANSION2_START + EXPANSION2_SIZE) {
         printf("Write to Expansion 2\n");
     } else if (address >= CDROM_START
         && address + 1 <= CDROM_START + CDROM_SIZE) {
         sys_cdrom->Write8(address - CDROM_START, data);
+    } else if (address >= JOYPAD_START
+        && address + 1 <= JOYPAD_START + JOYPAD_SIZE) {
+        sys_joypad->Write8(address - JOYPAD_START, data);
     } else {
         printf("Unhandled write of size 8 at address %08x, data %08x\n", address, data);
         assert(false);

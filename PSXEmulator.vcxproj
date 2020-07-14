@@ -144,6 +144,7 @@
   <ItemGroup>
     <ClCompile Include="bios.cpp" />
     <ClCompile Include="cdrom.cpp" />
+    <ClCompile Include="Controller.cpp" />
     <ClCompile Include="cop0.cpp" />
     <ClCompile Include="DMA.cpp" />
     <ClCompile Include="DMAChannel.cpp" />
@@ -162,6 +163,7 @@
   <ItemGroup>
     <ClInclude Include="bios.h" />
     <ClInclude Include="cdrom.h" />
+    <ClInclude Include="Controller.h" />
     <ClInclude Include="cop0.h" />
     <ClInclude Include="DMA.h" />
     <ClInclude Include="DMAChannel.h" />
