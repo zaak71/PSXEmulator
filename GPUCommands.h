@@ -8,6 +8,7 @@ enum class CommandType {
     DrawRect,
     CopyRectangle,
     TransferringCPUtoVRAM,
+    FillRectInVRAM,
     Other
 };
 
@@ -54,24 +55,31 @@ union LineArgs {
     }
 };
 
+enum class Size : uint8_t {
+    Variable = 0,
+    Dot = 1,
+    _8x8 = 2,
+    _16x16 = 3
+};
+
 union RectangleArgs {
     uint8_t opcode = 0;
     struct {
         uint8_t raw_tex : 1;    // 0=Texture Blending, 1=Raw Texture
         uint8_t semi_trans : 1; // 0=Opaque, 1=Semi Transparent
         uint8_t textured : 1;   // 0=Monochrome, 1=Textured
-        uint8_t size : 2;       // 0=Variable, 1=1x1, 2=8x8, 3=16x16
+        Size size : 2;          // 0=Variable, 1=1x1, 2=8x8, 3=16x16
         uint8_t : 3;
     };
     int GetNumArgs() const {
         int args = 2;
-        if (size == 0) {args++;}
+        if (size == Size::Variable) {args++;}
         if (textured) {args++;}
         return args;
     }
 };
 
-enum class TextureDepth : uint8_t {
+enum class TextureDepth : uint32_t {
     FourBits = 0,
     EightBits = 1,
     FifteenBits = 2,

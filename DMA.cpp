@@ -148,6 +148,15 @@ void DMA::DoManualTransfer(uint32_t channel) {
             if (DMA_interrupt.irq_enable & (1 << channel)) {
                 DMA_interrupt.irq_flags |= (1 << channel);
             }
+        } else if (ch == Channel::GPU) {
+            for (int i = size - 1; i >= 0; i--, addr += inc) {
+                uint32_t src = gpu->ReadVRAM();
+                sys->Write32(addr, src);
+            }
+            curr_channel.FinishTransfer();
+            if (DMA_interrupt.irq_enable & (1 << channel)) {
+                DMA_interrupt.irq_flags |= (1 << channel);
+            }
         } else {
             const char* mode = DMAChannel::TransferDirToString(transfer_direction);
             printf("Attempt to initiate manual DMA Transfer: direction %s, channel %d\n", mode, channel);

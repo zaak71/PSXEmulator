@@ -27,8 +27,10 @@ public:
     const VRAM& GetVRAM() const { return vram; }
     VRAM& GetVRAM() { return vram; }
     uint16_t GetVRAMFromPos(uint16_t x, uint16_t y) const;
+    uint32_t ReadVRAM();
     void SetVRAMFromPos(uint16_t x, uint16_t y, uint16_t data);
     const TextureWindowSetting& GetTexWindowSetting() const {return tex_window_settings;};
+    const DrawMode& GetDrawMode() const {return draw_mode;}
 private:
     Renderer renderer = Renderer(this);
     IRQ* irq;
@@ -38,8 +40,8 @@ private:
     int frames = 0;
 
     VRAM vram{};
-    uint32_t ReadVRAM();    
     void MoveVRAMTransferPosition();
+    DrawMode draw_mode{};
 
     uint32_t commands_left = 0;
     std::deque<uint32_t> command_fifo = {};
@@ -49,6 +51,7 @@ private:
     int GetArgCount(uint8_t opcode) const;
 
     // GP0 commands
+    void FillRectInVRAM();
     void DrawModeSetting(uint32_t command);
     void TexModeSetting(uint32_t command);
     void SetDrawingAreaTopLeft(uint32_t command);
