@@ -14,7 +14,7 @@
 class GPU {
 public:
     void Init(IRQ* irq);
-    void Cycle();
+    bool Cycle(int cycles);
 
     uint32_t Read32(uint32_t offset);
     void Write32(uint32_t offset, uint32_t data);

@@ -10,8 +10,8 @@ void GPU::Init(IRQ* irq) {
     this->irq = irq;
 }
 
-void GPU::Cycle() {
-    cycles_ran++;
+bool GPU::Cycle(int cycles) {
+    cycles_ran += cycles;
     if (cycles_ran >= kCyclesPerFrame) {
         cycles_ran = 0;
         frames++;
@@ -21,10 +21,9 @@ void GPU::Cycle() {
             GPUSTAT.draw_even_odd_lines = 1;
         }
         irq->TriggerIRQ(0);
-        //printf("Frame rendered here\n");
-        DumpVRAM();
+        return true;
     }
-
+    return false;
 }
 
 uint32_t GPU::Read32(uint32_t offset) {

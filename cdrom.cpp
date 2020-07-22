@@ -33,6 +33,9 @@ void cdrom::Write8(uint32_t offset, uint8_t data) {
             status.param_fifo_empty = 1;
             status.param_fifo_full = 1;
         }
+        if (!irq_fifo.empty()) {
+            irq_fifo.pop_front();
+        }
     } else {
         printf("Unhandled CDROM write at offset %01x, data %02x, index %01x\n",
             offset, data, status.index);
@@ -78,9 +81,18 @@ void cdrom::ExecuteCommand(uint8_t opcode) {
             status.response_fifo_empty = 1;
             irq_fifo.push_back(0x3);
             break;
+        case 0x0A:  // Init
+            irq_fifo.push_back(0x3);
+            response_fifo.push_back(status_code.reg);
+            status_code.reg &= 0x10;    // reset everything but the shell open
+            status_code.spindle_motor = 1;
+            mode.reg = 0;
+            irq_fifo.push_back(0x2);
+            response_fifo.push_back(status_code.reg);
+            status.response_fifo_empty = 1;
+            break;
         case 0x19:  // Test
-            TestCommand(param_fifo.front());
-            param_fifo.pop_front();
+            TestCommand(GetParam());
             break;
         default:
             printf("Unhandled CDROM command with opcode %02x\n", opcode);
@@ -104,4 +116,12 @@ void cdrom::TestCommand(uint8_t command) {
             assert(false);
             break;
     }
+}
+
+uint8_t cdrom::GetParam() {
+    uint8_t param = param_fifo.front();
+    param_fifo.pop_front();
+    status.param_fifo_empty = param_fifo.empty();
+    status.param_fifo_full = 1;
+    return param;
 }

@@ -16,7 +16,8 @@
 class PSX {
 public:
     PSX();
-    void Run();
+    bool RunStep();
+    const GPU::VRAM& GetVRAM() const;
 
     uint8_t Read8(uint32_t address) const;
     uint16_t Read16(uint32_t address) const;

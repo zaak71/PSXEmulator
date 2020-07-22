@@ -81,9 +81,15 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
+    <IncludePath>D:\Libraries\OpenGL\includes;$(IncludePath)</IncludePath>
+    <LibraryPath>D:\Libraries\OpenGL\lib;$(LibraryPath)</LibraryPath>
+    <SourcePath>D:\Libraries\OpenGL\src;$(SourcePath)</SourcePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
+    <IncludePath>D:\Libraries\OpenGL\includes;$(IncludePath)</IncludePath>
+    <LibraryPath>D:\Libraries\OpenGL\lib;$(LibraryPath)</LibraryPath>
+    <SourcePath>D:\Libraries\OpenGL\src;$(SourcePath)</SourcePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -123,6 +129,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>glfw3.lib;glfw3dll.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -139,6 +146,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>glfw3.lib;glfw3dll.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -148,6 +156,7 @@
     <ClCompile Include="cop0.cpp" />
     <ClCompile Include="DMA.cpp" />
     <ClCompile Include="DMAChannel.cpp" />
+    <ClCompile Include="glad.c" />
     <ClCompile Include="GPU.cpp" />
     <ClCompile Include="GTE.cpp" />
     <ClCompile Include="IRQ.cpp" />
@@ -179,8 +188,13 @@
     <ClInclude Include="CPU.h" />
     <ClInclude Include="RAM.h" />
     <ClInclude Include="Renderer.h" />
+    <ClInclude Include="Shader.h" />
     <ClInclude Include="SPU.h" />
     <ClInclude Include="Timers.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="FragmentShader.glsl" />
+    <None Include="VertexShader.glsl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

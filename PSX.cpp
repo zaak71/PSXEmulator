@@ -21,11 +21,21 @@ PSX::PSX() {
     sys_cdrom->Init(sys_irq.get());
 }
 
-void PSX::Run() {
-    sys_cpu->RunInstruction();
-    sys_gpu->Cycle();
-    sys_timers->Cycle();
+bool PSX::RunStep() {
+    const int cycles = 300;
+    for (int i = 0; i < cycles / 3; i++) {
+        sys_cpu->RunInstruction();
+    }
     sys_cdrom->Cycle();
+    sys_timers->Cycle(cycles);
+    if (sys_gpu->Cycle(cycles)) {
+        return true;
+    }
+    return false;
+}
+
+const GPU::VRAM& PSX::GetVRAM() const {
+    return sys_gpu->GetVRAM();
 }
 
 uint8_t PSX::Read8(uint32_t address) const {

@@ -13,6 +13,7 @@ uint8_t Joypad::Read8(uint8_t offset) {
         default:
             printf("Unhandled read of size 8 from joypad at offset %01x\n", offset);
             assert(false);
+            return 0;
             break;
     }
 }
@@ -32,6 +33,7 @@ uint16_t Joypad::Read16(uint8_t offset) {
         default:
             printf("Unhandled read of size 16 from joypad at offset %01x\n", offset);
             assert(false);
+            return 0;
             break;
     }
 }

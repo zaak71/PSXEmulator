@@ -16,6 +16,7 @@ private:
     
     void ExecuteCommand(uint8_t opcode);
     void TestCommand(uint8_t command);
+    uint8_t GetParam();
 
     union Status {
         uint8_t reg = 0x18;
@@ -43,6 +44,20 @@ private:
             uint8_t play : 1;
         };
     } status_code;
+
+    union Mode {
+        uint8_t reg = 0;
+        struct {
+            uint8_t cdda : 1;           // 0=Off, 1=Allow to read CD-DA sectors
+            uint8_t auto_pause : 1;     // 0=Off, 1=Auto pause on end of track
+            uint8_t report : 1;         // 0=Off, 1=Enable Report-IRQs for audio play
+            uint8_t xa_filter : 1;      // 0=Off, 1=Process sectors that match setfilter
+            uint8_t ignore_bit : 1;     // 0=Normal, 1=Ignore Sector Size, Setloc pos
+            uint8_t sector_size : 1;    // 0=0x800, 1=0x924
+            uint8_t xa_adpcm : 1;       // 0=Off, 1=Send sectors to SPU input
+            uint8_t speed : 1;          // 0=Normal, 1=Double
+        };
+    } mode;
 
     uint8_t irq_enable = 0;
 

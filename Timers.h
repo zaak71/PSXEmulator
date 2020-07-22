@@ -4,7 +4,7 @@
 
 class Timers {
 public:
-    void Cycle();
+    void Cycle(int cycles);
 
     void Write16(uint32_t offset, uint16_t data);
     void Write32(uint32_t offset, uint32_t data);

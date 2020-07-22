@@ -3,12 +3,12 @@
 #include <cstdio>
 #include <cassert>
 
-void Timers::Cycle() {
+void Timers::Cycle(int cycles) {
 	for (int i = 0; i < 3; i++) {
-	uint32_t& val = curr_counter_val[i];
-	uint16_t& target = target_val[i];
-	TimerMode& mode = counter_mode[i];
-		val++;
+		uint32_t& val = curr_counter_val[i];
+		uint16_t& target = target_val[i];
+		TimerMode& mode = counter_mode[i];
+		val += cycles;
 
 		if (val > target) {
 			mode.reached_tgt = 1;

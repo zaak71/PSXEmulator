@@ -17,6 +17,10 @@ CPU::CPU(PSX* system) : system(system), next_inst(0) {
 
 void CPU::RunInstruction() {
     current_PC = PC;
+    /*if (current_PC == 0x80030000) {
+        PC = registers[31];
+        next_PC = PC + 4;
+    }*/
     delay_slot = branch;
     branch = false;
     if (current_PC & 0x03) {
