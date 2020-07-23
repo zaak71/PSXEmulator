@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <string>
 
 #include "bios.h"
 #include "CPU.h"
@@ -42,5 +43,33 @@ private:
     0x7FFFFFFF,                                         // KUSEG0
     0x1FFFFFFF,                                         // KUSEG1
     0xFFFFFFFF, 0xFFFFFFFF};                            // KUSEG2
+
+    struct PSEXEHeader {
+        char magic[8];  // PS-X EXE
+        uint32_t text;
+        uint32_t data;
+
+        uint32_t initial_pc;
+        uint32_t initial_gp;
+
+        uint32_t dest_addr;
+        uint32_t dest_size;
+
+        uint32_t d_addr;
+        uint32_t d_size;
+
+        uint32_t memfill_addr;
+        uint32_t memfill_size;
+
+        uint32_t stack_addr;
+        uint32_t stack_offset;
+
+        uint32_t sp, fp, gp, ret, base;  // reserved, should be 0
+
+        char license[60];
+    };
+
+    void LoadExe(const std::string& path);
+    std::vector<uint8_t> exe_data{};
 };
 

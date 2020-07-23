@@ -11,8 +11,11 @@ void DMA::Init(RAM* ram, PSX* sys, IRQ* irq, GPU* gpu) {
     this->gpu = gpu;
 }
 
-void DMA::TriggerInterrupt() {
-    //irq->TriggerIRQ(3);
+void DMA::Cycle() {
+    if (trigger) {
+        irq->TriggerIRQ(3);
+        trigger = false;
+    }
 }
 
 void DMA::Write32(uint32_t offset, uint32_t data) {
@@ -87,7 +90,7 @@ uint32_t DMA::Read32(uint32_t offset) const {
 bool DMA::GetMasterFlag() const {
     return DMA_interrupt.force_irq 
         || (DMA_interrupt.irq_master_enable 
-        && (DMA_interrupt.irq_flags && DMA_interrupt.irq_enable));
+        && (DMA_interrupt.irq_flags & DMA_interrupt.irq_enable));
 }
 
 uint32_t DMA::GetInterruptReg() const {
@@ -123,7 +126,7 @@ void DMA::DoTransfer(uint32_t channel) {
     // Check if channel is enabled
     if (DMA_interrupt.reg & (0x10000 << channel)) {
         DMA_interrupt.reg |= (0x1000000 << channel);
-        TriggerInterrupt();
+        trigger = GetMasterFlag();
     }
 }
 
@@ -145,7 +148,7 @@ void DMA::DoManualTransfer(uint32_t channel) {
                 sys->Write32(addr, src);
             }
             curr_channel.FinishTransfer();
-            if (DMA_interrupt.irq_enable & (1 << channel)) {
+            if (DMA_interrupt.irq_enable & (1 << channel) || DMA_interrupt.irq_master_enable) {
                 DMA_interrupt.irq_flags |= (1 << channel);
             }
         } else if (ch == Channel::GPU) {
@@ -154,7 +157,7 @@ void DMA::DoManualTransfer(uint32_t channel) {
                 sys->Write32(addr, src);
             }
             curr_channel.FinishTransfer();
-            if (DMA_interrupt.irq_enable & (1 << channel)) {
+            if (DMA_interrupt.irq_enable & (1 << channel) || DMA_interrupt.irq_master_enable) {
                 DMA_interrupt.irq_flags |= (1 << channel);
             }
         } else {
@@ -166,11 +169,11 @@ void DMA::DoManualTransfer(uint32_t channel) {
         if (ch == Channel::GPU) {
             for (uint32_t i = 0; i < size; i++, addr += inc) {
                 uint32_t cmd = sys->Read32(addr);
-                printf("GP0 command (Manual): %08x\n", cmd);
+                //printf("GP0 command (Manual): %08x\n", cmd);
                 gpu->GP0Command(cmd);
             }
             curr_channel.FinishTransfer();
-            if (DMA_interrupt.irq_enable & (1 << channel)) {
+            if (DMA_interrupt.irq_enable & (1 << channel) || DMA_interrupt.irq_master_enable) {
                 DMA_interrupt.irq_flags |= (1 << channel);
             }
         } else {
@@ -197,14 +200,14 @@ void DMA::DoLinkedTransfer(uint32_t channel) {
                 for (uint32_t i = 0; i < size; i++) {
                     addr = (addr + inc) & 0x00FFFFFC;
                     uint32_t cmd = sys->Read32(addr);
-                    printf("GPU command (LL): %08x\n", cmd);
+                    //printf("GPU command (LL): %08x\n", cmd);
                     gpu->GP0Command(cmd);
                 }
                 addr = header & 0x00FFFFFF;
             }
             curr_channel.dma_base_address = addr;
             curr_channel.FinishTransfer();
-            if (DMA_interrupt.irq_enable & (1 << channel)) {
+            if (DMA_interrupt.irq_enable & (1 << channel) || DMA_interrupt.irq_master_enable) {
                 DMA_interrupt.irq_flags |= (1 << channel);
             }
         } else {

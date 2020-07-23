@@ -12,6 +12,7 @@ class PSX;
 class DMA {
 public:
     void Init(RAM* ram, PSX* sys, IRQ* irq, GPU* gpu);
+    void Cycle();
     void Write32(uint32_t offset, uint32_t data);
     uint32_t Read32(uint32_t offset) const;
 
@@ -19,6 +20,7 @@ public:
     void DoManualTransfer(uint32_t channel);
     void DoLinkedTransfer(uint32_t channel);
 private:
+    bool trigger = false;
     enum class Channel : uint32_t {
         MDECIn = 0,
         MDECOut = 1,
@@ -35,7 +37,6 @@ private:
     GPU* gpu;
     std::array<DMAChannel, 7> channels;
 
-    void TriggerInterrupt();
     bool GetMasterFlag() const;
     uint32_t GetInterruptReg() const;
 

@@ -2,6 +2,7 @@
 #include "Constants.h"
 
 #include <cassert>
+#include <fstream>
 
 PSX::PSX() {
     sys_bios = std::make_unique<Bios>(this);
@@ -19,6 +20,8 @@ PSX::PSX() {
     sys_dma->Init(sys_ram.get(), this, sys_irq.get(), sys_gpu.get());
     sys_gpu->Init(sys_irq.get());
     sys_cdrom->Init(sys_irq.get());
+
+    LoadExe("exe/psxtest_cpu.exe");
 }
 
 bool PSX::RunStep() {
@@ -26,6 +29,7 @@ bool PSX::RunStep() {
     for (int i = 0; i < cycles / 3; i++) {
         sys_cpu->RunInstruction();
     }
+    //sys_dma->Cycle();
     sys_cdrom->Cycle();
     sys_timers->Cycle(cycles);
     if (sys_gpu->Cycle(cycles)) {
@@ -36,6 +40,32 @@ bool PSX::RunStep() {
 
 const GPU::VRAM& PSX::GetVRAM() const {
     return sys_gpu->GetVRAM();
+}
+
+void PSX::LoadExe(const std::string& path) {
+    std::ifstream exe_file(path, std::ios::binary | std::ios::in | std::ios::ate);
+    exe_file.seekg(0, exe_file.end);
+    int size = exe_file.tellg();
+    exe_file.seekg(0, exe_file.beg);
+
+    exe_data.resize(size);
+    if (exe_file.is_open()) {
+        exe_file.read((char*)exe_data.data(), size);
+    }
+    exe_file.close();
+
+    PSEXEHeader exe;
+    memcpy(&exe, exe_data.data(), sizeof(exe));
+
+    for (int i = 0; i < exe.dest_size; i++) {
+        Write8(exe.dest_addr + i, exe_data[0x800 + i]);
+    }
+    sys_cpu->SetPC(exe.initial_pc);
+    sys_cpu->SetReg(28, exe.initial_gp);
+    if (exe.stack_addr != 0) {
+        sys_cpu->SetReg(29, exe.stack_addr + exe.stack_offset);
+        sys_cpu->SetReg(30, exe.stack_addr + exe.stack_offset);
+    }
 }
 
 uint8_t PSX::Read8(uint32_t address) const {

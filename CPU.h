@@ -14,6 +14,8 @@ public:
     CPU(PSX* system);
     void RunInstruction();
     void DecodeAndExecute(uint32_t instruction);
+    void SetPC(uint32_t new_pc);
+    void SetReg(uint32_t regnum, uint32_t data);
 private:
     PSX* system = nullptr;
     cop0 COP0;

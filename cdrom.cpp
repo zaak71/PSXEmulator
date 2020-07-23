@@ -4,6 +4,7 @@
 #include <cassert>
 
 void cdrom::Cycle() {
+    status.cmd_transmission_busy = 0;
     if (!irq_fifo.empty()) {
         if ((irq_enable & 0x7) && (irq_fifo.front() & 0x7)) {
             irq->TriggerIRQ(2);
@@ -90,6 +91,7 @@ void cdrom::ExecuteCommand(uint8_t opcode) {
             irq_fifo.push_back(0x2);
             response_fifo.push_back(status_code.reg);
             status.response_fifo_empty = 1;
+            status.cmd_transmission_busy = 1;
             break;
         case 0x19:  // Test
             TestCommand(GetParam());

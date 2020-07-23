@@ -15,12 +15,21 @@ CPU::CPU(PSX* system) : system(system), next_inst(0) {
     delay_slot = branch = false;
 }
 
+void CPU::SetPC(uint32_t new_pc) {
+    PC = new_pc;
+    new_pc = PC + 4;
+}
+
+void CPU::SetReg(uint32_t regnum, uint32_t data) {
+    registers[regnum] = data;
+}
+
 void CPU::RunInstruction() {
     current_PC = PC;
-    /*if (current_PC == 0x80030000) {
+    if (current_PC == 0x80030000) {
         PC = registers[31];
         next_PC = PC + 4;
-    }*/
+    }
     delay_slot = branch;
     branch = false;
     if (current_PC & 0x03) {
