@@ -17,6 +17,8 @@ uint32_t cop0::Read(int reg_num) {
         case 7:
             return dcic_register;
             break;
+        case 8:
+            return bad_vaddr;
         case 9:
             return bdam_reg;
             break;
@@ -31,6 +33,9 @@ uint32_t cop0::Read(int reg_num) {
             break;
         case 14:
             return epc;
+            break;
+        case 15:
+            return processor_id;
             break;
         default:
             printf("Unhandled read from register %02x\n", reg_num);

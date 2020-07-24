@@ -19,6 +19,7 @@ public:
     PSX();
     bool RunStep();
     const GPU::VRAM& GetVRAM() const;
+    void LoadExeToCPU();
 
     uint8_t Read8(uint32_t address) const;
     uint16_t Read16(uint32_t address) const;
@@ -37,6 +38,7 @@ private:
     std::unique_ptr<GPU> sys_gpu;
     std::unique_ptr<cdrom> sys_cdrom;
     std::unique_ptr<Joypad> sys_joypad;
+    std::unique_ptr<Scratchpad> sys_scratchpad;
 
     const uint32_t region_mask[8] = {
     0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,     // KUSEG
@@ -67,7 +69,7 @@ private:
         uint32_t sp, fp, gp, ret, base;  // reserved, should be 0
 
         char license[60];
-    };
+    } exe;
 
     void LoadExe(const std::string& path);
     std::vector<uint8_t> exe_data{};

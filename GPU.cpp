@@ -8,6 +8,7 @@
 void GPU::Init(IRQ* irq) {
     vram.fill(0);
     this->irq = irq;
+    read_mode = GPUREADMode::VRAM;
 }
 
 bool GPU::Cycle(int cycles) {
@@ -29,7 +30,12 @@ bool GPU::Cycle(int cycles) {
 uint32_t GPU::Read32(uint32_t offset) {
     switch (offset) {
         case 0:
-            return ReadVRAM();
+            if (read_mode == GPUREADMode::VRAM) {
+                return ReadVRAM();
+            } else {
+                read_mode = GPUREADMode::VRAM;
+                return read_data;
+            }
             break;
         case 4:
             // HACK: hardcode bit 19 to zero
@@ -40,6 +46,22 @@ uint32_t GPU::Read32(uint32_t offset) {
             assert(false);
             return 0;
             break;
+    }
+}
+
+void GPU::GetGPUInfo() {
+    if (read_index == 2) {
+        read_data = tex_window_settings.reg;
+    } else if (read_index == 3) {
+        read_data = (drawing_area_top << 10) | drawing_area_left;
+    } else if (read_index == 4) {
+        read_data = (drawing_area_bottom << 10) | drawing_area_right;
+    } else if (read_index == 5) {
+        read_data = ((y_offset & 0x7FF) << 11) | (x_offset & 0x7FF);
+    } else if (read_index == 7) {
+        read_data = 2;
+    } else if (read_index == 8) {
+        read_data = 0;
     }
 }
 
@@ -215,6 +237,11 @@ void GPU::GP1Command(uint32_t command) {
             break;
         case 0x08:
             SetDisplayMode(command);
+            break;
+        case 0x10:
+            read_mode = GPUREADMode::GPUInfo;
+            read_index = command % 0x10;
+            GetGPUInfo();
             break;
         default:
             printf("Unhandled GP1 command: opcode %02x\n", opcode);

@@ -2,6 +2,8 @@
 #include "PSX.h"
 #include <assert.h>
 
+#define LOAD_EXE 0
+
 CPU::CPU(PSX* system) : system(system), next_inst(0) {
     PC = current_PC = 0xBFC00000;
     next_PC = PC + 4;
@@ -17,7 +19,7 @@ CPU::CPU(PSX* system) : system(system), next_inst(0) {
 
 void CPU::SetPC(uint32_t new_pc) {
     PC = new_pc;
-    new_pc = PC + 4;
+    next_PC = PC + 4;
 }
 
 void CPU::SetReg(uint32_t regnum, uint32_t data) {
@@ -26,10 +28,16 @@ void CPU::SetReg(uint32_t regnum, uint32_t data) {
 
 void CPU::RunInstruction() {
     current_PC = PC;
-    if (current_PC == 0x80030000) {
+    /*if (PC == 0x80030000) {
         PC = registers[31];
         next_PC = PC + 4;
+    }*/
+#if LOAD_EXE
+    if (PC == 0x80030000) {
+        system->LoadExeToCPU();
     }
+#endif // LOAD_EXE
+
     delay_slot = branch;
     branch = false;
     if (current_PC & 0x03) {
@@ -45,6 +53,9 @@ void CPU::RunInstruction() {
     uint32_t inst = system->Read32(PC);
     PC = next_PC;
     next_PC += 4;
+    if (PC == 0xBFC04F28) {
+        printf("here");
+    }
     DecodeAndExecute(inst);
 }
 

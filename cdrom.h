@@ -32,7 +32,7 @@ private:
     } status;
 
     union StatusCode {
-        uint8_t reg = 0x00;                 // sheel is open by default
+        uint8_t reg = 0x02;                 // sheel is open by default
         struct {
             uint8_t error : 1;
             uint8_t spindle_motor : 1;      // 0=Off/spinning up, 1=On

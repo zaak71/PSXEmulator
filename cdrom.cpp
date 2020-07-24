@@ -76,6 +76,8 @@ uint8_t cdrom::Read8(uint32_t offset) {
 }
 
 void cdrom::ExecuteCommand(uint8_t opcode) {
+    irq_fifo.clear();
+    response_fifo.clear();
     switch (opcode) {
         case 0x01:  // GetStat
             response_fifo.push_back(status_code.reg);
@@ -101,6 +103,11 @@ void cdrom::ExecuteCommand(uint8_t opcode) {
             assert(false);
             break;
     }
+    param_fifo.clear();
+    status.param_fifo_empty = 1;
+    status.param_fifo_full = 1;
+    status.cmd_transmission_busy = 1;
+    status.ADPBUSY = 0;
 }
 
 void cdrom::TestCommand(uint8_t command) {

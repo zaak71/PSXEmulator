@@ -55,5 +55,6 @@ public:
     } status;
 
     uint32_t epc;
+    uint32_t processor_id = 2;
+    uint32_t bad_vaddr = 0;
 };
-

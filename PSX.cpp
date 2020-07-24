@@ -15,6 +15,7 @@ PSX::PSX() {
     sys_gpu = std::make_unique<GPU>();
     sys_cdrom = std::make_unique<cdrom>();
     sys_joypad = std::make_unique<Joypad>();
+    sys_scratchpad = std::make_unique<Scratchpad>();
 
     sys_bios->LoadBios("bios/SCPH1001.BIN");
     sys_dma->Init(sys_ram.get(), this, sys_irq.get(), sys_gpu.get());
@@ -54,12 +55,14 @@ void PSX::LoadExe(const std::string& path) {
     }
     exe_file.close();
 
-    PSEXEHeader exe;
     memcpy(&exe, exe_data.data(), sizeof(exe));
 
     for (int i = 0; i < exe.dest_size; i++) {
         Write8(exe.dest_addr + i, exe_data[0x800 + i]);
     }
+}
+
+void PSX::LoadExeToCPU() {
     sys_cpu->SetPC(exe.initial_pc);
     sys_cpu->SetReg(28, exe.initial_gp);
     if (exe.stack_addr != 0) {
@@ -74,6 +77,9 @@ uint8_t PSX::Read8(uint32_t address) const {
     if (address >= RAM_START_ADDRESS
         && address + 1 <= RAM_START_ADDRESS + RAM_SIZE) {
         return sys_ram->Read<uint8_t>(address - RAM_START_ADDRESS);
+    } else if (address >= SCRATCHPAD_START
+        && address + 1 <= SCRATCHPAD_START + SCRATCHPAD_SIZE) {
+        return sys_scratchpad->Read<uint8_t>(address - SCRATCHPAD_START);
     } else if (address >= BIOS_START_ADDRESS
         && address + 1 <= BIOS_START_ADDRESS + BIOS_SIZE) {
         return sys_bios->Read<uint8_t>(address - BIOS_START_ADDRESS);
@@ -103,6 +109,9 @@ uint16_t PSX::Read16(uint32_t address) const {
     if (address >= RAM_START_ADDRESS
         && address + 2 <= RAM_START_ADDRESS + RAM_SIZE) {
         return sys_ram->Read<uint16_t>(address - RAM_START_ADDRESS);
+    } else if (address >= SCRATCHPAD_START
+        && address + 2 <= SCRATCHPAD_START + SCRATCHPAD_SIZE) {
+        return sys_scratchpad->Read<uint16_t>(address - SCRATCHPAD_START);
     } else if (address >= BIOS_START_ADDRESS
         && address + 2 <= BIOS_START_ADDRESS + BIOS_SIZE) {
         return sys_bios->Read<uint16_t>(address - BIOS_START_ADDRESS);
@@ -131,7 +140,13 @@ uint32_t PSX::Read32(uint32_t address) const {
     if (address >= RAM_START_ADDRESS 
         && address + 4 <= RAM_START_ADDRESS + RAM_SIZE) {
         return sys_ram->Read<uint32_t>(address - RAM_START_ADDRESS);
-    } else if (address >= BIOS_START_ADDRESS 
+    } else if (address >= SCRATCHPAD_START
+        && address + 4 <= SCRATCHPAD_START + SCRATCHPAD_SIZE) {
+        return sys_scratchpad->Read<uint32_t>(address - SCRATCHPAD_START);
+    } else if (address >= EXPANSION1_START
+        && address + 4 <= EXPANSION1_START + EXPANSION1_SIZE) {
+        return 0;
+    } else if (address >= BIOS_START_ADDRESS
         && address + 4 <= BIOS_START_ADDRESS + BIOS_SIZE) {
         return sys_bios->Read<uint32_t>(address - BIOS_START_ADDRESS);
     } else if (address >= IRQ_START
@@ -160,7 +175,10 @@ void PSX::Write32(uint32_t address, const uint32_t data) {
     if (address >= RAM_START_ADDRESS
         && address + 4 <= RAM_START_ADDRESS + RAM_SIZE) {
         sys_ram->Write(address - RAM_START_ADDRESS, data);
-    } else if (address >= BIOS_START_ADDRESS 
+    } else if (address >= SCRATCHPAD_START
+        && address + 4 <= SCRATCHPAD_START + SCRATCHPAD_SIZE) {
+        sys_scratchpad->Write(address - SCRATCHPAD_START, data);
+    } else if (address >= BIOS_START_ADDRESS
         && address + 4 <= BIOS_START_ADDRESS + BIOS_SIZE) {
         sys_bios->Write(address - BIOS_START_ADDRESS, data);
     } else if (address >= MEM_CONTROL_1_START 
@@ -172,6 +190,9 @@ void PSX::Write32(uint32_t address, const uint32_t data) {
     } else if (address >= CACHE_CONTROL_START
         && address + 4 <= CACHE_CONTROL_START + CACHE_CONTROL_SIZE) {
         printf("Write to Cache Control\n");
+    } else if (address >= EXPANSION1_START
+        && address + 4 <= EXPANSION1_START + EXPANSION1_SIZE) {
+        printf("Write to Expansion 1\n");
     } else if (address >= EXPANSION2_START
         && address + 4 <= EXPANSION2_START + EXPANSION2_SIZE) {
         printf("Write to Expansion 2\n");
@@ -203,7 +224,10 @@ void PSX::Write16(uint32_t address, const uint16_t data) {
     if (address >= RAM_START_ADDRESS
         && address + 2 <= RAM_START_ADDRESS + RAM_SIZE) {
         sys_ram->Write(address - RAM_START_ADDRESS, data);
-    } else if (address >= BIOS_START_ADDRESS 
+    } else if (address >= SCRATCHPAD_START
+        && address + 2 <= SCRATCHPAD_START + SCRATCHPAD_SIZE) {
+        sys_scratchpad->Write(address - SCRATCHPAD_START, data);
+    } else if (address >= BIOS_START_ADDRESS
         && address + 2 <= BIOS_START_ADDRESS + BIOS_SIZE) {
         sys_bios->Write(address - BIOS_START_ADDRESS, data);
     } else if (address >= SPU_START
@@ -224,6 +248,9 @@ void PSX::Write16(uint32_t address, const uint16_t data) {
     } else if (address >= IRQ_START
         && address + 2 <= IRQ_START + IRQ_SIZE) {
         sys_irq->Write16(address - IRQ_START, data);
+    } else if (address >= EXPANSION1_START
+        && address + 2 <= EXPANSION1_START + EXPANSION1_SIZE) {
+        printf("Write to Expansion 2\n");
     } else if (address >= EXPANSION2_START
         && address + 2 <= EXPANSION2_START + EXPANSION2_SIZE) {
         printf("Write to Expansion 2\n");
@@ -242,7 +269,10 @@ void PSX::Write8(uint32_t address, const uint8_t data) {
     if (address >= RAM_START_ADDRESS
         && address + 1 <= RAM_START_ADDRESS + RAM_SIZE) {
         sys_ram->Write(address - RAM_START_ADDRESS, data);
-    } else if (address >= BIOS_START_ADDRESS 
+    } else if (address >= SCRATCHPAD_START
+        && address + 1 <= SCRATCHPAD_START + SCRATCHPAD_SIZE) {
+        sys_scratchpad->Write(address - SCRATCHPAD_START, data);
+    } else if (address >= BIOS_START_ADDRESS
         && address + 1 <= BIOS_START_ADDRESS + BIOS_SIZE) {
         sys_bios->Write(address - BIOS_START_ADDRESS, data);
     } else if (address >= MEM_CONTROL_1_START
@@ -254,6 +284,9 @@ void PSX::Write8(uint32_t address, const uint8_t data) {
     } else if (address >= CACHE_CONTROL_START
         && address + 1 <= CACHE_CONTROL_START + CACHE_CONTROL_SIZE) {
         printf("Write to Cache Control\n");
+    } else if (address >= EXPANSION1_START
+        && address + 1 <= EXPANSION1_START + EXPANSION1_SIZE) {
+        printf("Write to Expansion 1\n");
     } else if (address >= EXPANSION2_START
         && address + 1 <= EXPANSION2_START + EXPANSION2_SIZE) {
         printf("Write to Expansion 2\n");

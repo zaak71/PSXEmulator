@@ -119,5 +119,13 @@ private:
             uint32_t draw_even_odd_lines : 1;   // 0=Even/Vblank, 1=Odd
         };
     } GPUSTAT;
+
+    enum class GPUREADMode {
+        VRAM,
+        GPUInfo
+    } read_mode;
+    uint32_t read_index = 0;
+    uint32_t read_data = 0;
+    void GetGPUInfo();
 };
 
