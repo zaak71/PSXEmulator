@@ -6,6 +6,7 @@
 class RAM {
 public:
     RAM();
+    void DumpRAM();
 
     template <typename Value>
     Value Read(uint32_t offset) const {

@@ -64,7 +64,6 @@ uint8_t cdrom::Read8(uint32_t offset) {
         uint8_t irq = 0;
         if (!irq_fifo.empty()) {
             irq = irq_fifo.front();
-            irq_fifo.pop_front();
         }
         return 0b11100000 | (irq & 0x7u);
     } else {

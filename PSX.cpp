@@ -21,22 +21,22 @@ PSX::PSX() {
     sys_dma->Init(sys_ram.get(), this, sys_irq.get(), sys_gpu.get());
     sys_gpu->Init(sys_irq.get());
     sys_cdrom->Init(sys_irq.get());
-
-    LoadExe("exe/psxtest_cpu.exe");
+    sys_cpu->AddBreakpoint(0x80030000);
 }
 
-bool PSX::RunStep() {
-    const int cycles = 300;
-    for (int i = 0; i < cycles / 3; i++) {
-        sys_cpu->RunInstruction();
+void PSX::RunFrame() {
+    for (;;) {
+        const int cycles = 300;
+        if (!sys_cpu->RunInstructions(cycles / 3)) {
+            return;
+        }
+        //sys_dma->Cycle();
+        sys_cdrom->Cycle();
+        sys_timers->Cycle(cycles);
+        if (sys_gpu->Cycle(cycles)) {
+            return;
+        }
     }
-    //sys_dma->Cycle();
-    sys_cdrom->Cycle();
-    sys_timers->Cycle(cycles);
-    if (sys_gpu->Cycle(cycles)) {
-        return true;
-    }
-    return false;
 }
 
 const GPU::VRAM& PSX::GetVRAM() const {
@@ -62,6 +62,10 @@ void PSX::LoadExe(const std::string& path) {
     }
 }
 
+void PSX::DumpRAM() {
+    sys_ram->DumpRAM();
+}
+
 void PSX::LoadExeToCPU() {
     sys_cpu->SetPC(exe.initial_pc);
     sys_cpu->SetReg(28, exe.initial_gp);
@@ -85,7 +89,7 @@ uint8_t PSX::Read8(uint32_t address) const {
         return sys_bios->Read<uint8_t>(address - BIOS_START_ADDRESS);
     } else if (address >= EXPANSION1_START
         && address + 1 <= EXPANSION1_START + EXPANSION1_SIZE) {
-        return 0xFF;
+        return 0;
     } else if (address >= CDROM_START
         && address + 1 <= CDROM_START + CDROM_SIZE) {
         return sys_cdrom->Read8(address - CDROM_START);
@@ -174,13 +178,13 @@ void PSX::Write32(uint32_t address, const uint32_t data) {
 
     if (address >= RAM_START_ADDRESS
         && address + 4 <= RAM_START_ADDRESS + RAM_SIZE) {
-        sys_ram->Write(address - RAM_START_ADDRESS, data);
+        sys_ram->Write<uint32_t>(address - RAM_START_ADDRESS, data);
     } else if (address >= SCRATCHPAD_START
         && address + 4 <= SCRATCHPAD_START + SCRATCHPAD_SIZE) {
-        sys_scratchpad->Write(address - SCRATCHPAD_START, data);
+        sys_scratchpad->Write<uint32_t>(address - SCRATCHPAD_START, data);
     } else if (address >= BIOS_START_ADDRESS
         && address + 4 <= BIOS_START_ADDRESS + BIOS_SIZE) {
-        sys_bios->Write(address - BIOS_START_ADDRESS, data);
+        sys_bios->Write<uint32_t>(address - BIOS_START_ADDRESS, data);
     } else if (address >= MEM_CONTROL_1_START 
         && address + 4 <= MEM_CONTROL_1_START + MEM_CONTROL_1_SIZE) {
         printf("Write to Memory Control 1\n");
@@ -216,20 +220,16 @@ void PSX::Write32(uint32_t address, const uint32_t data) {
 
 void PSX::Write16(uint32_t address, const uint16_t data) {
     address = address & region_mask[address >> 29];
-    if (address & 0x01) {
-        printf("Warning: misaligned memory access of size 16 at address %08x\n", address);
-        return;
-    }
 
     if (address >= RAM_START_ADDRESS
         && address + 2 <= RAM_START_ADDRESS + RAM_SIZE) {
-        sys_ram->Write(address - RAM_START_ADDRESS, data);
+        sys_ram->Write<uint16_t>(address - RAM_START_ADDRESS, data);
     } else if (address >= SCRATCHPAD_START
         && address + 2 <= SCRATCHPAD_START + SCRATCHPAD_SIZE) {
-        sys_scratchpad->Write(address - SCRATCHPAD_START, data);
+        sys_scratchpad->Write<uint16_t>(address - SCRATCHPAD_START, data);
     } else if (address >= BIOS_START_ADDRESS
         && address + 2 <= BIOS_START_ADDRESS + BIOS_SIZE) {
-        sys_bios->Write(address - BIOS_START_ADDRESS, data);
+        sys_bios->Write<uint16_t>(address - BIOS_START_ADDRESS, data);
     } else if (address >= SPU_START
         && address + 2 <= SPU_START + SPU_SIZE) {
         sys_spu->Write16(address, data);
@@ -268,13 +268,13 @@ void PSX::Write8(uint32_t address, const uint8_t data) {
 
     if (address >= RAM_START_ADDRESS
         && address + 1 <= RAM_START_ADDRESS + RAM_SIZE) {
-        sys_ram->Write(address - RAM_START_ADDRESS, data);
+        sys_ram->Write<uint8_t>(address - RAM_START_ADDRESS, data);
     } else if (address >= SCRATCHPAD_START
         && address + 1 <= SCRATCHPAD_START + SCRATCHPAD_SIZE) {
-        sys_scratchpad->Write(address - SCRATCHPAD_START, data);
+        sys_scratchpad->Write<uint8_t>(address - SCRATCHPAD_START, data);
     } else if (address >= BIOS_START_ADDRESS
         && address + 1 <= BIOS_START_ADDRESS + BIOS_SIZE) {
-        sys_bios->Write(address - BIOS_START_ADDRESS, data);
+        sys_bios->Write<uint8_t>(address - BIOS_START_ADDRESS, data);
     } else if (address >= MEM_CONTROL_1_START
         && address + 1 <= MEM_CONTROL_1_START + MEM_CONTROL_1_SIZE) {
         printf("Write to Memory Control 1\n");

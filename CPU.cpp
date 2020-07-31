@@ -26,37 +26,48 @@ void CPU::SetReg(uint32_t regnum, uint32_t data) {
     registers[regnum] = data;
 }
 
-void CPU::RunInstruction() {
-    current_PC = PC;
-    /*if (PC == 0x80030000) {
-        PC = registers[31];
-        next_PC = PC + 4;
-    }*/
-#if LOAD_EXE
-    if (PC == 0x80030000) {
-        system->LoadExeToCPU();
-    }
-#endif // LOAD_EXE
+void CPU::AddBreakpoint(uint32_t bp) {
+    breakpoints.push_back(bp);
+}
 
-    delay_slot = branch;
-    branch = false;
-    if (current_PC & 0x03) {
-        HandleException(Exceptions::AddrErrorLoad);
-        return;
-    }
-    // Check for any interrupts that need to be handled
-    if (COP0.status.current_interrupt_enable) {
-        if (COP0.status.interrupt_mask && COP0.cause.interrupt_pending) {
-            HandleException(Exceptions::Interrupt);
+bool CPU::DidHitBreakpoint() {
+    for (int i = 0; i < breakpoints.size(); i++) {
+        if (breakpoints[i] == PC) {
+            breakpoints.erase(breakpoints.begin() + i);
+            if (PC == 0x80030000) {
+                SetPC(registers[31]);
+            }
+            return true;
         }
     }
-    uint32_t inst = system->Read32(PC);
-    PC = next_PC;
-    next_PC += 4;
-    if (PC == 0xBFC04F28) {
-        printf("here");
+    return false;
+}
+
+bool CPU::RunInstructions(int instructions) {
+    for (int i = 0; i < instructions; i++) {
+        current_PC = PC;
+#if LOAD_EXE
+        if (PC == 0x80030000) {
+            system->LoadExeToCPU();
+        }
+#endif // LOAD_EXE
+
+        delay_slot = branch;
+        branch = false;
+        // Check for any interrupts that need to be handled
+        if (COP0.status.current_interrupt_enable) {
+            if (COP0.status.interrupt_mask && COP0.cause.interrupt_pending) {
+                HandleException(Exceptions::Interrupt);
+            }
+        }
+        if (DidHitBreakpoint()) {
+            return false;
+        }
+        uint32_t inst = system->Read32(PC);
+        SetPC(next_PC);
+        DecodeAndExecute(inst);
     }
-    DecodeAndExecute(inst);
+    return true;
 }
 
 void CPU::DecodeAndExecute(uint32_t instruction) {
@@ -280,12 +291,13 @@ void CPU::Branch(int imm) {
 }
 
 void CPU::HandleException(const Exceptions& cause) {
+    COP0.cause.reg &= 0x0000FF00;
+    COP0.cause.reg |= (((uint32_t)cause) << 2);
     uint32_t handler = COP0.status.boot_exception_vector ? 0xBFC00180 : 0x80000080;
     uint32_t mode = COP0.status.reg & 0x3F;
     COP0.status.reg &= ~0x3F;
     COP0.status.reg |= ((mode << 2) & 0x3F);
-    COP0.cause.reg &= 0x0000FF00;
-    COP0.cause.reg |= (((uint32_t)cause) << 2);
+    
     COP0.epc = current_PC;
     
     if (cause == Exceptions::Interrupt) {
@@ -424,7 +436,7 @@ void CPU::mult(const Instruction& inst) {
     int64_t result = rs * rt;
     ExecutePendingLoad();
     hi = (uint32_t)((uint64_t)result >> 32);
-    lo = (uint32_t)result;
+    lo = (uint32_t)(result & 0xFFFFFFFF);
 }
 
 void CPU::multu(const Instruction& inst) {
@@ -433,7 +445,7 @@ void CPU::multu(const Instruction& inst) {
     uint64_t result = rs * rt;
     ExecutePendingLoad();
     hi = (uint32_t)(result >> 32);
-    lo = (uint32_t)result;
+    lo = (uint32_t)(result & 0xFFFFFFFF);
 }
 
 void CPU::div(const Instruction& inst) {
@@ -472,11 +484,11 @@ void CPU::divu(const Instruction& inst) {
 }
 
 void CPU::add(const Instruction& inst) {
-    int32_t rs = (int32_t)registers[inst.rs()];
-    int32_t rt = (int32_t)registers[inst.rt()];
-    int32_t result = rs + rt;
+    uint32_t rs = (int32_t)registers[inst.rs()];
+    uint32_t rt = (int32_t)registers[inst.rt()];
+    uint32_t result = rs + rt;
     ExecutePendingLoad();
-    if ((rs >= 0 && rt > INT32_MAX - rs) || (rs < 0 && rt < (INT32_MIN - rs))) {
+    if (!((rs ^ rt) & 0x80000000) && ((result ^ rs) & 0x80000000)) {
         HandleException(Exceptions::Overflow);
         return;
     }
@@ -492,11 +504,11 @@ void CPU::addu(const Instruction& inst) {
 }
 
 void CPU::sub(const Instruction& inst) {
-    int32_t rs = (int32_t)registers[inst.rs()];
-    int32_t rt = (int32_t)registers[inst.rt()];
-    int32_t result = rs - rt;
+    uint32_t rs = (int32_t)registers[inst.rs()];
+    uint32_t rt = (int32_t)registers[inst.rt()];
+    uint32_t result = rs - rt;
     ExecutePendingLoad();
-    if ((result < rs) != (rt > 0)) {
+    if (!((rs ^ rt) & 0x80000000) && ((result ^ rs) & 0x80000000)) {
         HandleException(Exceptions::Overflow);
         return;
     }

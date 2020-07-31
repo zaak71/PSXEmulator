@@ -96,18 +96,18 @@ int main(int argc, char** argv) {
     glClear(GL_COLOR_BUFFER_BIT);
     while (!glfwWindowShouldClose(window)) {
         ProcessInput(window);
+        system.RunFrame();
+        //system.DumpRAM();
+        glfwSwapBuffers(window);
+        data = system.GetVRAM().data();
+        glBindVertexArray(VAO);
+        shader.Use();
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, texture);
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, VRAM_WIDTH, VRAM_HEIGHT, GL_RGBA,
+            GL_UNSIGNED_SHORT_1_5_5_5_REV, (const void*)data);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
         
-        if (system.RunStep()) {
-            glfwSwapBuffers(window);
-            data = system.GetVRAM().data();
-            glBindVertexArray(VAO);
-            shader.Use();
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, texture);
-            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, VRAM_WIDTH, VRAM_HEIGHT, GL_RGBA,
-                GL_UNSIGNED_SHORT_1_5_5_5_REV, (const void*)data);
-            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-        }
         cycles++;
         
         glfwPollEvents();

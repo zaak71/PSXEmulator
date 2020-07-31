@@ -3,6 +3,7 @@
 #include "instruction.h"
 #include "cop0.h"
 #include "GTE.h"
+#include <vector>
 
 class PSX;
 class IRQ;
@@ -12,14 +13,18 @@ public:
     friend class IRQ;
 
     CPU(PSX* system);
-    void RunInstruction();
+    bool RunInstructions(int instructions);
     void DecodeAndExecute(uint32_t instruction);
     void SetPC(uint32_t new_pc);
     void SetReg(uint32_t regnum, uint32_t data);
+    void AddBreakpoint(uint32_t bp);
 private:
     PSX* system = nullptr;
     cop0 COP0;
     GTE gte;
+
+    std::vector<uint32_t> breakpoints{};
+    bool DidHitBreakpoint();
 
     uint32_t registers[32];
     uint32_t PC, next_PC, hi, lo;
