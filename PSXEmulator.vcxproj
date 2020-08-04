@@ -154,6 +154,7 @@
     <ClCompile Include="cdrom.cpp" />
     <ClCompile Include="Controller.cpp" />
     <ClCompile Include="cop0.cpp" />
+    <ClCompile Include="Disk.cpp" />
     <ClCompile Include="DMA.cpp" />
     <ClCompile Include="DMAChannel.cpp" />
     <ClCompile Include="glad.c" />
@@ -174,6 +175,7 @@
     <ClInclude Include="cdrom.h" />
     <ClInclude Include="Controller.h" />
     <ClInclude Include="cop0.h" />
+    <ClInclude Include="Disk.h" />
     <ClInclude Include="DMA.h" />
     <ClInclude Include="DMAChannel.h" />
     <ClInclude Include="GPU.h" />

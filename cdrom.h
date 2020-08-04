@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <deque>
 #include "IRQ.h"
+#include "Disk.h"
 
 class cdrom {
 public:
@@ -13,10 +14,22 @@ public:
     uint8_t Read8(uint32_t offset);
 private:
     IRQ* irq;
+    Disk game_disk;
+    std::vector<uint8_t> read_data{};
+    std::vector<uint8_t> data_buffer{};
+    uint32_t data_buffer_index = 0;
     
     void ExecuteCommand(uint8_t opcode);
+    void SetLoc();
+    void ReadN();
+    void InitCommand();
+    void SetMode();
+    void SeekL();
     void TestCommand(uint8_t command);
     uint8_t GetParam();
+    void PushResponse(uint8_t response);
+
+    uint32_t GetLBA(uint8_t mm, uint8_t ss, uint8_t sect) const;
 
     union Status {
         uint8_t reg = 0x18;
@@ -64,5 +77,9 @@ private:
     std::deque<uint8_t> param_fifo = {};
     std::deque<uint8_t> response_fifo = {};
     std::deque<uint8_t> irq_fifo = {};
+
+    uint8_t mm, ss, sect;
+    uint32_t read_sector, seek_sector;
+    uint32_t steps_until_read = 1150;
 };
 

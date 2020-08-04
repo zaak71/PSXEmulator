@@ -10,10 +10,26 @@ void cdrom::Cycle() {
             irq->TriggerIRQ(2);
         }
     }
+
+    constexpr int magic = 1150;
+    if (status_code.read) {
+        if (--steps_until_read == 0) {
+            steps_until_read = magic;
+
+            read_data = game_disk.read(read_sector);
+            read_sector++;
+
+            PushResponse(status_code.reg);
+            irq_fifo.push_back(0x1);
+        }
+    }
 }
 
 void cdrom::Init(IRQ* irq) {
     this->irq = irq;
+    mm = ss = sect = 0;
+    read_sector = seek_sector = 0;
+    game_disk.LoadGame("games/crash.BIN");
 }
 
 void cdrom::Write8(uint32_t offset, uint8_t data) {
@@ -28,6 +44,16 @@ void cdrom::Write8(uint32_t offset, uint8_t data) {
         status.param_fifo_full = param_fifo.size() < 16;
     } else if (offset == 2 && status.index == 1) {
         irq_enable = data;
+    } else if (offset == 3 && status.index == 0) {
+        if (data & 0x80 && (data_buffer.empty() || data_buffer_index >= 2352)) {
+            data_buffer = std::move(read_data);
+            data_buffer_index = 0;
+            status.data_fifo_empty = 1;
+        } else {
+            data_buffer.clear();
+            data_buffer_index = 0;
+            status.data_fifo_empty = 0;
+        }
     } else if (offset == 3 && status.index == 1) {
         if (data & 0x40) {      // reset the param FIFO
             param_fifo.clear();
@@ -83,20 +109,12 @@ void cdrom::ExecuteCommand(uint8_t opcode) {
             status.response_fifo_empty = 1;
             irq_fifo.push_back(0x3);
             break;
-        case 0x0A:  // Init
-            irq_fifo.push_back(0x3);
-            response_fifo.push_back(status_code.reg);
-            status_code.reg &= 0x10;    // reset everything but the shell open
-            status_code.spindle_motor = 1;
-            mode.reg = 0;
-            irq_fifo.push_back(0x2);
-            response_fifo.push_back(status_code.reg);
-            status.response_fifo_empty = 1;
-            status.cmd_transmission_busy = 1;
-            break;
-        case 0x19:  // Test
-            TestCommand(GetParam());
-            break;
+        case 0x02: SetLoc(); break;
+        case 0x06: ReadN(); break;
+        case 0x0A: InitCommand(); break;
+        case 0x0E: SetMode(); break;
+        case 0x15: SeekL(); break;
+        case 0x19: TestCommand(GetParam()); break;
         default:
             printf("Unhandled CDROM command with opcode %02x\n", opcode);
             assert(false);
@@ -126,10 +144,73 @@ void cdrom::TestCommand(uint8_t command) {
     }
 }
 
+void cdrom::SetLoc() {
+    uint8_t amm = GetParam();
+    mm = (amm >> 4) * 10 + (amm & 0xF);
+    uint8_t ass = GetParam();
+    ss = (ass >> 4) * 10 + (ass & 0xF);
+    uint8_t asect = GetParam();
+    sect = (asect >> 4) * 10 + (asect & 0xF);
+    seek_sector = GetLBA(mm, ss, sect);
+
+    irq_fifo.push_back(0x3);
+    PushResponse(status_code.reg);
+}
+
+void cdrom::ReadN() {
+    read_sector = seek_sector;
+
+    status_code.reg &= 0x10;
+    status_code.spindle_motor = 1;
+    status_code.read = 1;
+
+    irq_fifo.push_back(0x3);
+    PushResponse(status_code.reg);
+}
+
+void cdrom::SeekL() {
+    read_sector = seek_sector;
+    irq_fifo.push_back(0x3);
+    PushResponse(status_code.reg);
+
+    status_code.reg &= 0x10;
+    status_code.spindle_motor = 1;
+    status_code.seek = 1;
+
+    irq_fifo.push_back(0x2);
+    PushResponse(status_code.reg);
+}
+
+void cdrom::InitCommand() {
+    irq_fifo.push_back(0x3);
+    PushResponse(status_code.reg);
+    status_code.reg &= 0x10;    // reset everything but the shell open
+    status_code.spindle_motor = 1;
+    mode.reg = 0;
+    irq_fifo.push_back(0x2);
+    response_fifo.push_back(status_code.reg);
+    PushResponse(status_code.reg);
+}
+
+void cdrom::SetMode() {
+    status_code.reg = GetParam();
+    irq_fifo.push_back(0x3);
+    PushResponse(status_code.reg);
+}
+
 uint8_t cdrom::GetParam() {
     uint8_t param = param_fifo.front();
     param_fifo.pop_front();
     status.param_fifo_empty = param_fifo.empty();
     status.param_fifo_full = 1;
     return param;
+}
+
+void cdrom::PushResponse(uint8_t response) {
+    response_fifo.push_back(response);
+    status.response_fifo_empty = 1;
+}
+
+uint32_t cdrom::GetLBA(uint8_t mm, uint8_t ss, uint8_t sect) const {
+    return (mm * 60 * 75) + (ss * 75) + sect;
 }
