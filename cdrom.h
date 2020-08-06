@@ -12,17 +12,23 @@ public:
 
     void Write8(uint32_t offset, uint8_t data);
     uint8_t Read8(uint32_t offset);
+    uint32_t GetWord();
 private:
     IRQ* irq;
     Disk game_disk;
+
     std::vector<uint8_t> read_data{};
     std::vector<uint8_t> data_buffer{};
     uint32_t data_buffer_index = 0;
+    uint8_t GetByte();
     
     void ExecuteCommand(uint8_t opcode);
     void SetLoc();
     void ReadN();
+    void Pause();
     void InitCommand();
+    void Mute();
+    void Demute();
     void SetMode();
     void SeekL();
     void TestCommand(uint8_t command);

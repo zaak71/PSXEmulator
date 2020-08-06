@@ -16,7 +16,7 @@ void cdrom::Cycle() {
         if (--steps_until_read == 0) {
             steps_until_read = magic;
 
-            read_data = game_disk.read(read_sector);
+            read_data = game_disk.read(read_sector - 2 * 75);
             read_sector++;
 
             PushResponse(status_code.reg);
@@ -111,7 +111,10 @@ void cdrom::ExecuteCommand(uint8_t opcode) {
             break;
         case 0x02: SetLoc(); break;
         case 0x06: ReadN(); break;
+        case 0x09: Pause(); break;
         case 0x0A: InitCommand(); break;
+        case 0x0B: Mute(); break;
+        case 0x0C: Demute(); break;
         case 0x0E: SetMode(); break;
         case 0x15: SeekL(); break;
         case 0x19: TestCommand(GetParam()); break;
@@ -168,6 +171,17 @@ void cdrom::ReadN() {
     PushResponse(status_code.reg);
 }
 
+void cdrom::Pause() {
+    irq_fifo.push_back(0x3);
+    PushResponse(status_code.reg);
+    
+    status_code.reg &= 0x10;
+    status_code.spindle_motor = 1;
+
+    irq_fifo.push_back(0x2);
+    PushResponse(status_code.reg);
+}
+
 void cdrom::SeekL() {
     read_sector = seek_sector;
     irq_fifo.push_back(0x3);
@@ -192,6 +206,16 @@ void cdrom::InitCommand() {
     PushResponse(status_code.reg);
 }
 
+void cdrom::Mute() {
+    irq_fifo.push_back(0x3);
+    PushResponse(status_code.reg);
+}
+
+void cdrom::Demute() {
+    irq_fifo.push_back(0x3);
+    PushResponse(status_code.reg);
+}
+
 void cdrom::SetMode() {
     status_code.reg = GetParam();
     irq_fifo.push_back(0x3);
@@ -213,4 +237,24 @@ void cdrom::PushResponse(uint8_t response) {
 
 uint32_t cdrom::GetLBA(uint8_t mm, uint8_t ss, uint8_t sect) const {
     return (mm * 60 * 75) + (ss * 75) + sect;
+}
+
+uint8_t cdrom::GetByte() {
+    if (data_buffer.empty()) {
+        return 0;
+    }
+    uint8_t data = data_buffer[24 + data_buffer_index++];   // skip the sync
+    if (data_buffer.empty() || data_buffer_index >= 2352) {
+        status.data_fifo_empty = 0;
+    }
+    return data;
+}
+
+uint32_t cdrom::GetWord() {
+    uint32_t word = 0;
+    word |= GetByte() << 0;
+    word |= GetByte() << 8;
+    word |= GetByte() << 16;
+    word |= GetByte() << 24;
+    return word;
 }

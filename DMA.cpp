@@ -4,11 +4,12 @@
 #include <cassert>
 #include <cstdio>
 
-void DMA::Init(RAM* ram, PSX* sys, IRQ* irq, GPU* gpu) {
+void DMA::Init(RAM* ram, PSX* sys, IRQ* irq, GPU* gpu, cdrom* CDROM) {
     this->ram = ram;
     this->sys = sys;
     this->irq = irq;
     this->gpu = gpu;
+    this->CDROM = CDROM;
 }
 
 void DMA::Cycle() {
@@ -22,20 +23,20 @@ void DMA::Write32(uint32_t offset, uint32_t data) {
     uint32_t channel = offset / 0x10;
     if (channel <= 6) {
         switch (offset % 0x10) {
-        case 0:
-            channels[channel].dma_base_address = data;
-            break;
-        case 4:
-            channels[channel].dma_block_control = data;
-            break;
-        case 8:
-            channels[channel].control.reg = data;
-            break;
-        default:
-            printf("Unhandled Write to DMA at offset %08x\n", offset);
-            assert(false);
-            break;
-        }
+            case 0:
+                channels[channel].dma_base_address = data;
+                break;
+            case 4:
+                channels[channel].dma_block_control = data;
+                break;
+            case 8:
+                channels[channel].control.reg = data;
+                break;
+            default:
+                printf("Unhandled Write to DMA at offset %08x\n", offset);
+                assert(false);
+                break;
+            }
         if (channels[channel].IsActive()) {
             DoTransfer(channel);
         }
@@ -160,6 +161,15 @@ void DMA::DoManualTransfer(uint32_t channel) {
             if (DMA_interrupt.irq_enable & (1 << channel) || DMA_interrupt.irq_master_enable) {
                 DMA_interrupt.irq_flags |= (1 << channel);
             }
+        } else if (ch == Channel::CDROM) {
+            for (int i = size - 1; i >= 0; i--, addr += inc) {
+                uint32_t src = CDROM->GetWord();
+                sys->Write32(addr, src);
+            }
+            curr_channel.FinishTransfer();
+            if (DMA_interrupt.irq_enable & (1 << channel) || DMA_interrupt.irq_master_enable) {
+                DMA_interrupt.irq_flags |= (1 << channel);
+            }
         } else {
             const char* mode = DMAChannel::TransferDirToString(transfer_direction);
             printf("Attempt to initiate manual DMA Transfer: direction %s, channel %d\n", mode, channel);
@@ -169,7 +179,6 @@ void DMA::DoManualTransfer(uint32_t channel) {
         if (ch == Channel::GPU) {
             for (uint32_t i = 0; i < size; i++, addr += inc) {
                 uint32_t cmd = sys->Read32(addr);
-                //printf("GP0 command (Manual): %08x\n", cmd);
                 gpu->GP0Command(cmd);
             }
             curr_channel.FinishTransfer();
@@ -200,7 +209,6 @@ void DMA::DoLinkedTransfer(uint32_t channel) {
                 for (uint32_t i = 0; i < size; i++) {
                     addr = (addr + inc) & 0x00FFFFFC;
                     uint32_t cmd = sys->Read32(addr);
-                    //printf("GPU command (LL): %08x\n", cmd);
                     gpu->GP0Command(cmd);
                 }
                 addr = header & 0x00FFFFFF;

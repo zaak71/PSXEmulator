@@ -17,6 +17,7 @@ std::vector<uint8_t> Disk::read(uint32_t pos) {
     std::vector<uint8_t> read_data(2352);
     game_file.seekg(pos);
     game_file.read((char*)read_data.data(), 2352);
-    read_data.assign(data.begin() + pos, data.begin() + pos + 2352);
+    int offset = pos * 2352;
+    read_data.assign((data.begin() + offset), data.begin() + offset + 2352);
     return read_data;
 }
