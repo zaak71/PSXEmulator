@@ -124,5 +124,7 @@ private:
     void swl(const Instruction& inst);
     void sw(const Instruction& inst);
     void swr(const Instruction& inst);
+    void lwc2(const Instruction& inst);
+    void swc2(const Instruction& inst);
 };
 

@@ -7,8 +7,27 @@ class GTE {
 public:
     uint32_t Read(uint32_t reg_num);
     void Write(uint32_t reg_num, uint32_t data);
+    void ExecuteGTECommand(uint32_t inst);
 private:
     uint32_t GetConversionOutput();
+
+    union GTEInstruction {
+        uint32_t inst = 0;
+        struct {
+            uint32_t cmd_num : 6;       // 00..3F
+            uint32_t : 4;
+            uint32_t lm : 1;            // 0=-0x8000...0x7FFF, 1=0...0x7FFF
+            uint32_t : 2;
+            uint32_t trans_vec : 2;     // 0=TR, 1=BK, 2=FC/Bugged, 3=None
+            uint32_t mult_vec : 2;      // 0->2=V0->V2, 3=IR/Long
+            uint32_t mult_mat : 2;      // 0=Rotation, 1=Light, 2=Color, 3=Reserved
+            uint32_t sf : 1;            // 0=No fraction, 1=12 bit fraction
+            uint32_t fake_cmd_num : 5;  // 00..1F
+            uint32_t cop2_code : 7;     // Must be 0100101b for GTE
+        };
+    };
+
+    void MVMVA(GTEInstruction inst);
 
     union GTEFlag {
         uint32_t reg = 0;
@@ -40,7 +59,7 @@ private:
             return reg & 0xFFFFF000;
         }
     };
-
+    using Matrix = glm::mat<3, 3, int16_t>;
     // Data Registers
     glm::vec<3, int16_t> v[3];                  // r0-5
     glm::vec<4, uint8_t> rgbc;                  // r6
@@ -56,11 +75,11 @@ private:
     int32_t lzcr = 0;                           // r31
 
     // Control Registers
-    glm::mat<3, 3, int16_t> rotation{};         // r32-36
+    Matrix rotation{};                          // r32-36
     glm::vec<3, int32_t> trans_vec;             // r37-39
-    glm::mat<3, 3, int16_t> light_source{};     // r40-44
+    Matrix light_source{};                      // r40-44
     glm::vec<3, int32_t> bg_color;              // r45-47
-    glm::mat<3, 3, int16_t> light_color{};      // r48-52
+    Matrix light_color{};                       // r48-52
     glm::vec<3, int32_t> far_color;             // r53-55
     int32_t offset_x = 0;                       // r56
     int32_t offset_y = 0;                       // r57

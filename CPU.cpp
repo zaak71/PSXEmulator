@@ -269,6 +269,12 @@ void CPU::DecodeAndExecute(uint32_t instruction) {
             ExecutePendingLoad();
             HandleException(Exceptions::CpU);
             break;
+        case 0x32:
+            lwc2(inst);
+            break;
+        case 0x3A:
+            swc2(inst);
+            break;
         default:
             printf("Unhandled Instruction: %08x\n", instruction);
             printf("Unhandled Opcode: %02x\n", inst.opcode());
@@ -737,6 +743,10 @@ void CPU::HandleCop1(const Instruction& inst) {
 }
 
 void CPU::HandleCop2(const Instruction& inst) {
+    if (inst.inst & (1 << 25)) {    // Execute a GTE command
+        gte.ExecuteGTECommand(inst.inst);
+        return;
+    }
     switch (inst.rs()) {
         case 0x00:
             mfc2(inst);
@@ -909,21 +919,21 @@ void CPU::lwr(const Instruction& inst) {
     uint32_t rt_data = registers[rt];
     uint32_t aligned_word = system->Read32(address & 0xFFFFFFFC);
     switch (address % 4) {
-    case 0:
-        pending_load_data = (rt_data & 0x00000000) | (aligned_word >> 0);
-        break;
-    case 1:
-        pending_load_data = (rt_data & 0xFF000000) | (aligned_word >> 8);
-        break;
-    case 2:
-        pending_load_data = (rt_data & 0xFFFF0000) | (aligned_word >> 16);
-        break;
-    case 3:
-        pending_load_data = (rt_data & 0xFFFFFF00) | (aligned_word >> 24);
-        break;
-    default:
-        //Should never get here
-        assert(false);
+        case 0:
+            pending_load_data = (rt_data & 0x00000000) | (aligned_word >> 0);
+            break;
+        case 1:
+            pending_load_data = (rt_data & 0xFF000000) | (aligned_word >> 8);
+            break;
+        case 2:
+            pending_load_data = (rt_data & 0xFFFF0000) | (aligned_word >> 16);
+            break;
+        case 3:
+            pending_load_data = (rt_data & 0xFFFFFF00) | (aligned_word >> 24);
+            break;
+        default:
+            //Should never get here
+            assert(false);
     }
     pending_reg = rt;
     is_pending_load = true;
@@ -1027,5 +1037,28 @@ void CPU::swr(const Instruction& inst) {
         assert(false);
         break;
     }
+    system->Write32(address, data);
+}
+
+void CPU::lwc2(const Instruction& inst) {
+    uint32_t address = registers[inst.rs()] + (int32_t)((int16_t)inst.imm16());
+    uint32_t rt = inst.rt();
+    ExecutePendingLoad();
+    if (address & 0x03) {
+        HandleException(Exceptions::AddrErrorLoad);
+        return;
+    }
+    uint32_t data = system->Read32(address);
+    gte.Write(rt, data);
+}
+
+void CPU::swc2(const Instruction& inst) {
+    uint32_t address = registers[inst.rs()] + (int32_t)((int16_t)inst.imm16());
+    uint32_t data = gte.Read(inst.rt());
+    if (address & 0x03) {
+        HandleException(Exceptions::AddrErrorStore);
+        return;
+    }
+    ExecutePendingLoad();
     system->Write32(address, data);
 }

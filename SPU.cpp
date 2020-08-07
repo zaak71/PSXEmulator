@@ -132,6 +132,12 @@ uint16_t SPU::Read16(uint32_t address) const {
 		case 0xD8E:
 			return key_off.halves[1];
 			break;
+		case 0xD98:
+			return EON.halves[0];
+			break;
+		case 0xD9A:
+			return EON.halves[1];
+			break;
 		case 0xD9C:
 			return ENDX.halves[0];
 			break;

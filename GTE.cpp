@@ -1,5 +1,6 @@
 #include "GTE.h"
 #include <algorithm>
+#include <cassert>
 
 uint32_t GetLeadingBitCount(uint32_t num) {
     if (num & 0x80000000) {
@@ -35,33 +36,22 @@ uint32_t GetLeadingBitCount(uint32_t num) {
 
 uint32_t GTE::Read(uint32_t reg_num) {
     switch (reg_num) {
-        case 0:
-            return (v[0].y << 16) | v[0].x;
-        case 1:
-            return v[0].z;
-        case 2:
-            return (v[1].y << 16) | v[1].x;
-        case 3:
-            return v[1].z;
-        case 4:
-            return (v[2].y << 16) | v[2].x;
-        case 5:
-            return v[2].z;
-        case 6:
-            return (rgbc.a << 24) | (rgbc.b << 16) | (rgbc.g << 8) | (rgbc.r);
+        case 0: return (v[0].y << 16) | v[0].x;
+        case 1: return v[0].z;
+        case 2: return (v[1].y << 16) | v[1].x;
+        case 3: return v[1].z;
+        case 4: return (v[2].y << 16) | v[2].x;
+        case 5: return v[2].z;
+        case 6: return (rgbc.a << 24) | (rgbc.b << 16) | (rgbc.g << 8) | (rgbc.r);
         case 7: return average_z;
         case 8: return ir[0];
         case 9: return ir[1];
         case 10: return ir[2];
         case 11: return ir[3];
-        case 12:
-            return (sxy[0].y << 16) | (sxy[0].x);
-        case 13:
-            return (sxy[1].y << 16) | (sxy[1].x);
-        case 14:
-            return (sxy[2].y << 16) | (sxy[2].x);
-        case 15:
-            return (sxy[3].y << 16) | (sxy[3].x);
+        case 12: return (sxy[0].y << 16) | (sxy[0].x);
+        case 13: return (sxy[1].y << 16) | (sxy[1].x);
+        case 14: return (sxy[2].y << 16) | (sxy[2].x);
+        case 15: return (sxy[3].y << 16) | (sxy[3].x);
         case 16: return sz[0];
         case 17: return sz[1];
         case 18: return sz[2];
@@ -72,16 +62,13 @@ uint32_t GTE::Read(uint32_t reg_num) {
             return (rgb[1].a << 24) | (rgb[1].b << 16) | (rgb[1].g << 8) | (rgb[1].r);
         case 22:
             return (rgb[2].a << 24) | (rgb[2].b << 16) | (rgb[2].g << 8) | (rgb[2].r);
-        case 23:
-            return res1;
-            //return (res1.a << 24) | (res1.b << 16) | (res1.g << 8) | (res1.r);
+        case 23: return res1;
         case 24: return mac[0];
         case 25: return mac[1];
         case 26: return mac[2];
         case 27: return mac[3];
         case 28:
-        case 29:
-            return GetConversionOutput();
+        case 29: return GetConversionOutput();
         case 30: return lzcs;
         case 31: return lzcr;
         case 32: return (rotation[0][1] << 16) | (rotation[0][0]);
@@ -291,4 +278,63 @@ uint32_t GTE::GetConversionOutput() {
     output |= (glm::clamp(ir[2] / 0x80, 0, 0x1F)) << 5;
     output |= (glm::clamp(ir[3] / 0x80, 0, 0x1F)) << 10;
     return output;
+}
+
+void GTE::ExecuteGTECommand(uint32_t inst) {
+    GTEInstruction command {inst};
+    switch (command.cmd_num) {
+        case 0x12: MVMVA(command); break;
+        default:
+            printf("Unhandled GTE command: %08x\n GTE opcode: %02x\n", inst, command.cmd_num);
+            assert(false);
+            break;
+    }
+}
+
+void GTE::MVMVA(GTEInstruction inst) {
+    Matrix mx{};
+    if (inst.mult_mat == 0) {
+        mx = rotation;
+    } else if (inst.mult_mat == 1) {
+        mx = light_source;
+    } else if (inst.mult_mat == 2) {
+        mx = light_color;
+    } else if (inst.mult_mat == 3) {
+        mx[0][0] = 0x60;
+        mx[0][1] = -0x60;
+        mx[0][2] = ir[0];
+        mx[1][0] = mx[1][1] = mx[1][2] = rotation[0][2];
+        mx[2][0] = mx[2][1] = mx[2][2] = rotation[1][1];
+    }
+
+    glm::vec<3, int16_t> vx{};
+    if (inst.mult_vec == 3) {
+        vx.x = ir[1];
+        vx.y = ir[2];
+        vx.z = ir[3];
+    } else {
+        vx = v[inst.mult_vec];
+    }
+
+    glm::vec<3, int32_t> tx{};
+    if (inst.trans_vec == 0) {
+        tx = trans_vec;
+    } else if (inst.trans_vec == 1) {
+        tx = bg_color;
+    } else if (inst.trans_vec == 2) {
+        tx = far_color;
+        // TODO: fix bugged MVMVA for this case;
+    }
+
+    mac[1] = (tx.x * 0x1000 + mx[0][0] * vx.x + mx[0][1] * vx.y + mx[0][2] * vx.z);
+    mac[2] = (tx.x * 0x1000 + mx[1][0] * vx.x + mx[1][1] * vx.y + mx[1][2] * vx.z);
+    mac[3] = (tx.x * 0x1000 + mx[2][0] * vx.x + mx[2][1] * vx.y + mx[2][2] * vx.z);
+    if (inst.sf) {
+        mac[1] >>= 12;
+        mac[2] >>= 12;
+        mac[3] >>= 12;
+    }
+    ir[1] = mac[1];
+    ir[2] = mac[2];
+    ir[3] = mac[3];
 }

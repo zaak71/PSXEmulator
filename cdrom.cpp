@@ -29,7 +29,7 @@ void cdrom::Init(IRQ* irq) {
     this->irq = irq;
     mm = ss = sect = 0;
     read_sector = seek_sector = 0;
-    game_disk.LoadGame("games/crash.BIN");
+    game_disk.LoadGame("games/tekken3_1.BIN");
 }
 
 void cdrom::Write8(uint32_t offset, uint8_t data) {
