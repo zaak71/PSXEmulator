@@ -4,10 +4,9 @@
 #include <cstdio>
 #include <cassert>
 
-SPU::SPU() {
-	for (int i = 0; i < 32; i++) {
-		reverb_regs[i] = 0;
-	}
+void SPU::Init(IRQ* irq) {
+	this->irq = irq;
+	spu_ram.fill(0);
 }
 
 void SPU::Write16(uint32_t address, uint16_t data) {
@@ -63,14 +62,26 @@ void SPU::Write16(uint32_t address, uint16_t data) {
 		case 0xD9A:
 			EON.halves[1] = data;
 			break;
+		case 0xD9C:
+			ENDX.halves[0] = data;
+			break;
+		case 0xD9E:
+			ENDX.halves[1] = data;
+			break;
 		case 0xDA2:
 			mBASE = data;
 			break;
+		case 0xDA4:
+			irq_address = data;
+			break;
 		case 0xDA6:
 			sram_data_transfer_address = data;
+			write_address = sram_data_transfer_address * 8;
 			break;
 		case 0xDA8:
 			sram_data_transfer_fifo = data;
+			Write<uint8_t>(write_address++, data);
+			Write<uint8_t>(write_address++, (uint8_t)(data >> 8));
 			break;
 		case 0xDAA:
 			SPUCNT.reg = data;
@@ -89,6 +100,12 @@ void SPU::Write16(uint32_t address, uint16_t data) {
 			break;
 		case 0xDB6:
 			external_input_volume.right = data;
+			break;
+		case 0xDB8:
+			curr_main_volume.left = data;
+			break;
+		case 0xDBA:
+			curr_main_volume.right = data;
 			break;
 		default:
 			printf("Unhandled write to SPU at address %08x\n", address);
@@ -115,6 +132,15 @@ uint16_t SPU::Read16(uint32_t address) const {
 		case 0xD8E:
 			return key_off.halves[1];
 			break;
+		case 0xD9C:
+			return ENDX.halves[0];
+			break;
+		case 0xD9E:
+			return ENDX.halves[1];
+			break;
+		case 0xDA6:
+			return sram_data_transfer_address;
+			break;
 		case 0xDAA:
 			return SPUCNT.reg;
 			break;
@@ -123,6 +149,12 @@ uint16_t SPU::Read16(uint32_t address) const {
 			break;
 		case 0xDAE:
 			return SPUSTAT.reg;
+			break;
+		case 0xDB8:
+			return curr_main_volume.left;
+			break;
+		case 0xDBA:
+			return curr_main_volume.right;
 			break;
 		default:
 			printf("Unhandled read from SPU at address %08x\n", address);
@@ -167,34 +199,34 @@ void SPU::HandleVoiceWrite(uint16_t offset, uint16_t voice, uint16_t data) {
 
 uint16_t SPU::ReadVoice(uint16_t offset, uint16_t voice) const {
 	switch (offset) {
-	case 0:
-		return voices[voice].volume_left;
-		break;
-	case 2:
-		return voices[voice].volume_left;
-		break;
-	case 4:
-		return voices[voice].adpcm_sample_rate;
-		break;
-	case 6:
-		return voices[voice].adpcm_start_addr;
-		break;
-	case 8:
-		return voices[voice].adsr_lower;
-		break;
-	case 10:
-		return voices[voice].adsr_upper;
-		break;
-	case 12:
-		return voices[voice].adsr_curr_vol;
-		break;
-	case 14:
-		return voices[voice].adpcm_repeat_addr;
-		break;
-	default:
-		printf("Unhandled read from SPU at offset %08x\n", offset);
-		assert(false);
-		return 0;
-		break;
+		case 0:
+			return voices[voice].volume_left;
+			break;
+		case 2:
+			return voices[voice].volume_left;
+			break;
+		case 4:
+			return voices[voice].adpcm_sample_rate;
+			break;
+		case 6:
+			return voices[voice].adpcm_start_addr;
+			break;
+		case 8:
+			return voices[voice].adsr_lower;
+			break;
+		case 10:
+			return voices[voice].adsr_upper;
+			break;
+		case 12:
+			return voices[voice].adsr_curr_vol;
+			break;
+		case 14:
+			return voices[voice].adpcm_repeat_addr;
+			break;
+		default:
+			printf("Unhandled read from SPU at offset %08x\n", offset);
+			assert(false);
+			return 0;
+			break;
 	}
 }

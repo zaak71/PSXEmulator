@@ -7,12 +7,13 @@
 #include "IRQ.h"
 #include "GPU.h"
 #include "cdrom.h"
+#include "SPU.h"
 
 class PSX;
 
 class DMA {
 public:
-    void Init(RAM* ram, PSX* sys, IRQ* irq, GPU* gpu, cdrom* cdrom);
+    void Init(RAM* ram, PSX* sys, IRQ* irq, GPU* gpu, cdrom* CDROM, SPU* spu);
     void Cycle();
     void Write32(uint32_t offset, uint32_t data);
     uint32_t Read32(uint32_t offset) const;
@@ -37,6 +38,7 @@ private:
     IRQ* irq;
     GPU* gpu;
     cdrom* CDROM;
+    SPU* spu;
     std::array<DMAChannel, 7> channels;
 
     bool GetMasterFlag() const;

@@ -1,13 +1,38 @@
 #pragma once
 
 #include <cstdint>
+#include <array>
+#include "IRQ.h"
 
 class SPU {
 public:
-    SPU();
+    void Init(IRQ* irq);
     void Write16(uint32_t address, uint16_t data);
     uint16_t Read16(uint32_t address) const;
+    void Write8(uint32_t address, uint8_t data);
 private:
+    std::array<uint8_t, 512 * 1024> spu_ram;
+    template <typename Value>
+    Value Read(uint32_t address) {
+        if (SPUCNT.irq9_enable && address == irq_address * 8) {
+            SPUSTAT.irq9_flag = true;
+            irq->TriggerIRQ(9);
+        }
+        return *(Value*)(spu_ram.data() + address);
+    }
+
+    template <typename Value>
+    void Write(uint32_t address, Value data) {
+        *(Value*)(spu_ram.data() + address) = data;
+        if (SPUCNT.irq9_enable && address == irq_address * 8) {
+            SPUSTAT.irq9_flag = true;
+            irq->TriggerIRQ(9);
+        }
+    }
+
+    IRQ* irq;
+    uint16_t irq_address = 0;   // divided by 8
+
     uint16_t main_volume_l = 0;
     uint16_t main_volume_r = 0;
     uint16_t vLOUT = 0;
@@ -31,7 +56,7 @@ private:
             uint16_t noise_freq_shift : 4;      // 0...F= Low to High Frequency
             uint16_t mute_spu : 1;             // 0=Mute, 1=Unmute
             uint16_t spu_enable : 1;
-        } flags;
+        };
     } SPUCNT;
 
     union SPUStatus {   // 0x1F801DAE
@@ -45,7 +70,7 @@ private:
             uint16_t data_transfer_busy_flag : 1;   // 0=Ready, 1=Busy
             uint16_t write_to_half_capture_buf: 1;  // 0=1st half, 1=2nd half
             uint16_t : 4;
-        } flags;
+        };
     } SPUSTAT;
 
     union KeyOff {
@@ -54,7 +79,7 @@ private:
         struct {
             uint32_t voice_off : 24;    // 0=No Change, 1=Start Release
             uint32_t : 8;
-        } flags;
+        };
     } key_off;
 
     union KeyOn {
@@ -63,7 +88,7 @@ private:
         struct {
             uint32_t voice_on : 24;     // 0=No Change, 1=Start Attack/Decay/Sustain
             uint32_t : 8;
-        } flags;
+        };
     } key_on;
 
     union PitchModulationFlags {
@@ -73,7 +98,7 @@ private:
             uint32_t : 1;
             uint32_t voice_flags : 23;     // 0=Normal, 1=Modulate by Voice 0..22
             uint32_t : 8;
-        } flags;
+        };
     } PMON;
 
     union NoiseModeEnable {
@@ -82,7 +107,7 @@ private:
         struct {
             uint32_t voice_noise : 24;     // 0=ADPCM, 1=Noise
             uint32_t : 8;
-        } flags;
+        };
     } NON;
 
     union ReverbMode {
@@ -91,13 +116,22 @@ private:
         struct {
             uint32_t voice_dest : 24;     // 0=Mixer, 1=Mixer and Reverb
             uint32_t : 8;
-        } flags;
+        };
     } EON;
 
+    union OnOffStatus {
+        uint32_t reg = 0;
+        uint16_t halves[2];
+        struct {
+            uint32_t reached_loop_end : 24; // 0=Newly Keyed-ON, 1=Reached Loop end
+            uint32_t : 8;
+        };
+    } ENDX;
+
     struct Volume {
-        uint16_t left;      // -8000h to 7FFFh
-        uint16_t right;
-    } CD_input_volume, external_input_volume;
+        uint16_t left = 0;      // -8000h to 7FFFh
+        uint16_t right = 0;
+    } CD_input_volume, external_input_volume, curr_main_volume;
 
     union SRAMDataTransferControl {
         uint16_t reg = 0;
@@ -105,21 +139,22 @@ private:
             uint16_t : 1;
             uint16_t sram_data_transfer_type : 3;
             uint16_t : 12;
-        } flags;
+        };
     } sram_data_transfer_control;
 
     uint16_t sram_data_transfer_address = 0;
     uint16_t sram_data_transfer_fifo = 0;
+    int write_address;
 
     struct Voice {
-        uint16_t volume_left;
-        uint16_t volume_right;
-        uint16_t adpcm_sample_rate;
-        uint16_t adpcm_start_addr;
-        uint16_t adsr_lower;
-        uint16_t adsr_upper;
-        uint16_t adsr_curr_vol;
-        uint16_t adpcm_repeat_addr;
+        uint16_t volume_left = 0;
+        uint16_t volume_right = 0;
+        uint16_t adpcm_sample_rate = 0;
+        uint16_t adpcm_start_addr = 0;
+        uint16_t adsr_lower = 0;
+        uint16_t adsr_upper = 0;
+        uint16_t adsr_curr_vol = 0;
+        uint16_t adpcm_repeat_addr = 0;
     };
     Voice voices[24];
     void HandleVoiceWrite(uint16_t offset, uint16_t voice, uint16_t data);

@@ -38,14 +38,20 @@ void cdrom::Write8(uint32_t offset, uint8_t data) {
         status.index = data & 0x03;
     } else if (offset == 1 && status.index == 0) {
         ExecuteCommand(data);
+    } else if (offset == 1 && status.index == 3) {
+        vol_right_right = data;
     } else if (offset == 2 && status.index == 0) {
         param_fifo.push_back(data);
         status.param_fifo_empty = 0;
         status.param_fifo_full = param_fifo.size() < 16;
     } else if (offset == 2 && status.index == 1) {
         irq_enable = data;
+    } else if (offset == 2 && status.index == 2) {
+        vol_left_left = data;
+    } else if (offset == 2 && status.index == 3) {
+        vol_right_left = data;
     } else if (offset == 3 && status.index == 0) {
-        if (data & 0x80 && (data_buffer.empty() || data_buffer_index >= 2352)) {
+        if (data & 0x80 && IsBufferEmpty()) {
             data_buffer = std::move(read_data);
             data_buffer_index = 0;
             status.data_fifo_empty = 1;
@@ -63,7 +69,12 @@ void cdrom::Write8(uint32_t offset, uint8_t data) {
         if (!irq_fifo.empty()) {
             irq_fifo.pop_front();
         }
-    } else {
+    } else if (offset == 3 && status.index == 2) {
+        vol_left_right = data;
+    } else if (offset == 3 && status.index == 3) {
+        // Apply Volume changes : Ignored for now
+    }
+    else {
         printf("Unhandled CDROM write at offset %01x, data %02x, index %01x\n",
             offset, data, status.index);
         assert(false);
@@ -116,6 +127,7 @@ void cdrom::ExecuteCommand(uint8_t opcode) {
         case 0x0B: Mute(); break;
         case 0x0C: Demute(); break;
         case 0x0E: SetMode(); break;
+        case 0x13: GetTN(); break;
         case 0x15: SeekL(); break;
         case 0x19: TestCommand(GetParam()); break;
         default:
@@ -222,6 +234,14 @@ void cdrom::SetMode() {
     PushResponse(status_code.reg);
 }
 
+void cdrom::GetTN() {
+    irq_fifo.push_back(0x3);
+    PushResponse(status_code.reg);
+    PushResponse(0x1);
+    PushResponse(0x3);
+
+}
+
 uint8_t cdrom::GetParam() {
     uint8_t param = param_fifo.front();
     param_fifo.pop_front();
@@ -243,8 +263,22 @@ uint8_t cdrom::GetByte() {
     if (data_buffer.empty()) {
         return 0;
     }
-    uint8_t data = data_buffer[24 + data_buffer_index++];   // skip the sync
-    if (data_buffer.empty() || data_buffer_index >= 2352) {
+    int data_start = 12;
+    if (!mode.sector_size) {
+        data_start += 12;
+    }
+    
+    if (!mode.sector_size && data_buffer_index >= 0x800) {
+        data_buffer_index++;
+        return data_buffer[data_start + 0x800 - 8];
+    } else if (mode.sector_size && data_buffer_index >= 0x924) {
+        data_buffer_index++;
+        return data_buffer[data_start + 0x924 - 4];
+    }
+
+    uint8_t data = data_buffer[data_start + data_buffer_index++];   // skip the sync
+
+    if (IsBufferEmpty()) {
         status.data_fifo_empty = 0;
     }
     return data;
@@ -257,4 +291,9 @@ uint32_t cdrom::GetWord() {
     word |= GetByte() << 16;
     word |= GetByte() << 24;
     return word;
+}
+
+bool cdrom::IsBufferEmpty() const {
+    return data_buffer.empty() || (!mode.sector_size && data_buffer_index >= 0x800) 
+        || (mode.sector_size && data_buffer_index >= 0x924);
 }

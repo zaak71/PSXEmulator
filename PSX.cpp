@@ -18,7 +18,7 @@ PSX::PSX() {
     sys_scratchpad = std::make_unique<Scratchpad>();
 
     sys_bios->LoadBios("bios/SCPH1001.BIN");
-    sys_dma->Init(sys_ram.get(), this, sys_irq.get(), sys_gpu.get(), sys_cdrom.get());
+    sys_dma->Init(sys_ram.get(), this, sys_irq.get(), sys_gpu.get(), sys_cdrom.get(), sys_spu.get());
     sys_gpu->Init(sys_irq.get());
     sys_cdrom->Init(sys_irq.get());
     sys_cpu->AddBreakpoint(0x80030000);
@@ -30,7 +30,7 @@ void PSX::RunFrame() {
         if (!sys_cpu->RunInstructions(cycles / 3)) {
             return;
         }
-        //sys_dma->Cycle();
+        sys_dma->Cycle();
         sys_cdrom->Cycle();
         sys_timers->Cycle(cycles);
         if (sys_gpu->Cycle(cycles)) {
@@ -166,6 +166,9 @@ uint32_t PSX::Read32(uint32_t address) const {
     } else if (address >= TIMER_START
         && address + 4 <= TIMER_START + TIMER_SIZE) {
         return sys_timers->Read32(address - TIMER_START);
+    } else if (address >= MEM_CONTROL_1_START
+        && address + 4 <= MEM_CONTROL_1_START + MEM_CONTROL_1_SIZE) {
+        return 0;
     } else {
         printf("Unhandled memory access of size 32 at address %08x\n", address);
         assert(false);

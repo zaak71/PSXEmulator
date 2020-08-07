@@ -21,6 +21,7 @@ private:
     std::vector<uint8_t> data_buffer{};
     uint32_t data_buffer_index = 0;
     uint8_t GetByte();
+    bool IsBufferEmpty() const;
     
     void ExecuteCommand(uint8_t opcode);
     void SetLoc();
@@ -30,6 +31,7 @@ private:
     void Mute();
     void Demute();
     void SetMode();
+    void GetTN();
     void SeekL();
     void TestCommand(uint8_t command);
     uint8_t GetParam();
@@ -79,6 +81,10 @@ private:
     } mode;
 
     uint8_t irq_enable = 0;
+    uint8_t vol_left_left = 0;
+    uint8_t vol_left_right = 0;
+    uint8_t vol_right_right = 0;
+    uint8_t vol_right_left = 0;
 
     std::deque<uint8_t> param_fifo = {};
     std::deque<uint8_t> response_fifo = {};
