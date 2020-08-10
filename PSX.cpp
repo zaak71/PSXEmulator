@@ -21,6 +21,7 @@ PSX::PSX() {
     sys_dma->Init(sys_ram.get(), this, sys_irq.get(), sys_gpu.get(), sys_cdrom.get(), sys_spu.get());
     sys_gpu->Init(sys_irq.get());
     sys_cdrom->Init(sys_irq.get());
+    sys_timers->Init(sys_irq.get());
     sys_cpu->AddBreakpoint(0x80030000);
 }
 

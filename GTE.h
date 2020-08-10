@@ -2,14 +2,18 @@
 
 #include <cstdint>
 #include <glm/glm.hpp>
+#include <array>
 
 class GTE {
 public:
+    GTE();
     uint32_t Read(uint32_t reg_num);
     void Write(uint32_t reg_num, uint32_t data);
     void ExecuteGTECommand(uint32_t inst);
 private:
     uint32_t GetConversionOutput();
+    constexpr std::array<uint8_t, 0x101> GenerateUNRTable();
+    const std::array<uint8_t, 0x101> UNR_table;
 
     union GTEInstruction {
         uint32_t inst = 0;
@@ -25,9 +29,14 @@ private:
             uint32_t fake_cmd_num : 5;  // 00..1F
             uint32_t cop2_code : 7;     // Must be 0100101b for GTE
         };
-    };
+    } current_inst;
+    using Matrix = glm::mat<3, 3, int16_t>;
+    using Vec3 = glm::vec<3, int16_t>;
 
-    void MVMVA(GTEInstruction inst);
+    void RTPS(const GTEInstruction& inst, int vector);
+    void MVMVA(const GTEInstruction& inst);
+    void NCLIP();
+    void RTPT(const GTEInstruction& inst);
 
     union GTEFlag {
         uint32_t reg = 0;
@@ -59,9 +68,80 @@ private:
             return reg & 0xFFFFF000;
         }
     };
-    using Matrix = glm::mat<3, 3, int16_t>;
+
+    enum class Flag : uint32_t{
+        Ir0Saturated = 1 << 12,
+        Sy2Saturated = 1 << 13,
+        Sx2Saturated = 1 << 14,
+        Mac0OverflowPositive = 1 << 15,
+        Mac0OverflowNegative = 1 << 16,
+        DivisionOverflow = 1 << 17,
+        Sz3OtzSaturated = 1 << 18,
+        ColorFifoBSaturated = 1 << 19,
+        ColorFifoGSaturated = 1 << 20,
+        ColorFifoRSaturated = 1 << 21,
+        Ir3Saturated = 1 << 22,
+        Ir2Saturated = 1 << 23,
+        Ir1Saturated = 1 << 24,
+        Mac3OverflowNegative = 1 << 25,
+        Mac2OverflowNegative = 1 << 26,
+        Mac1OverflowNegative = 1 << 27,
+        Mac3OverflowPositive = 1 << 28,
+        Mac2OverflowPositive = 1 << 29,
+        Mac1OverflowPositive = 1 << 30
+    };
+
+    // Utility Functions
+    Vec3 MultMatrixByVector(const Matrix& m, const Vec3& v);
+    int32_t clamp(int32_t val, int32_t max, int32_t min, Flag flags);
+    void PushScreenXY(int32_t x, int32_t y);
+
+    template <int bits>
+    void SetArithmeticFlags(int64_t val, Flag underflow_flag, Flag ov_flag) {
+        if (val >= (1L << (bits - 1))) {
+            flag.reg |= (uint32_t)ov_flag;
+        }
+        if (val < -(1L << (bits - 1))) {
+            flag.reg |= (uint32_t)underflow_flag;
+        }
+    }
+
+    template <int index>
+    void SetMac(int64_t val) {
+        if (index == 1) {
+            SetArithmeticFlags<44>(val, Flag::Mac1OverflowNegative, Flag::Mac1OverflowPositive);
+        } else if (index == 2) {
+            SetArithmeticFlags<44>(val, Flag::Mac2OverflowNegative, Flag::Mac2OverflowPositive);
+        } else if (index == 3) {
+            SetArithmeticFlags<44>(val, Flag::Mac3OverflowNegative, Flag::Mac3OverflowPositive);
+        }
+        if (current_inst.sf) {
+            val >>= 12;
+        }
+        mac[index] = val;
+    }
+
+    template <int index>
+    void SetIr(int32_t val) {
+        uint32_t flag = 0;
+        if (index == 1) {
+            flag = Flag::Ir1Saturated;
+        } else if (index == 2) {
+            flag = Flag::Ir2Saturated;
+        } else if (index == 3) {
+            flag = Flag::Ir3Saturated;
+        }
+        ir[index] = clamp(val, 0x7FFF, current_inst.lm ? 0: -0x8000, flag);
+    }
+
+    template <int index>
+    void SetMacAndIr(int32_t val) {
+        SetMac<index>(val);
+        SetIr<index>(val);
+    }
+    
     // Data Registers
-    glm::vec<3, int16_t> v[3];                  // r0-5
+    Vec3 v[3];                                  // r0-5
     glm::vec<4, uint8_t> rgbc;                  // r6
     uint16_t average_z = 0;                     // r7
     int16_t ir[4] = {0, 0, 0, 0};               // r8-11
@@ -76,11 +156,11 @@ private:
 
     // Control Registers
     Matrix rotation{};                          // r32-36
-    glm::vec<3, int32_t> trans_vec;             // r37-39
+    Vec3 trans_vec;                             // r37-39
     Matrix light_source{};                      // r40-44
-    glm::vec<3, int32_t> bg_color;              // r45-47
+    Vec3 bg_color;                              // r45-47
     Matrix light_color{};                       // r48-52
-    glm::vec<3, int32_t> far_color;             // r53-55
+    Vec3 far_color;                             // r53-55
     int32_t offset_x = 0;                       // r56
     int32_t offset_y = 0;                       // r57
     uint16_t h = 0;                             // r58

@@ -2,6 +2,8 @@
 #include <algorithm>
 #include <cassert>
 
+GTE::GTE() : UNR_table(GenerateUNRTable()) {}
+
 uint32_t GetLeadingBitCount(uint32_t num) {
     if (num & 0x80000000) {
         num = ~num; // if the num is negative, flip the bits so same logic is used
@@ -13,6 +15,30 @@ uint32_t GetLeadingBitCount(uint32_t num) {
         num = y;
     }
     y = num >> 8;
+    if (y != 0) {
+        n -= 8;
+        num = y;
+    }
+    y = num >> 4;
+    if (y != 0) {
+        n -= 4;
+        num = y;
+    }
+    y = num >> 2;
+    if (y != 0) {
+        n -= 2;
+        num = y;
+    }
+    y = num >> 1;
+    if (y != 0) {
+        return n - 2;
+    }
+    return n - num;
+}
+
+uint16_t GetLeadingZeroes(uint16_t num) {
+    unsigned y = num >> 8;
+    int n = 16;
     if (y != 0) {
         n -= 8;
         num = y;
@@ -281,17 +307,21 @@ uint32_t GTE::GetConversionOutput() {
 }
 
 void GTE::ExecuteGTECommand(uint32_t inst) {
-    GTEInstruction command {inst};
-    switch (command.cmd_num) {
-        case 0x12: MVMVA(command); break;
+    flag.reg = 0;
+    current_inst = GTEInstruction{inst};
+    switch (current_inst.cmd_num) {
+        case 0x01: RTPS(current_inst, 0); break;
+        case 0x06: NCLIP(); break;
+        case 0x12: MVMVA(current_inst); break;
+        case 0x30: RTPT(current_inst); break;
         default:
-            printf("Unhandled GTE command: %08x\n GTE opcode: %02x\n", inst, command.cmd_num);
+            printf("Unhandled GTE command: %08x\n GTE opcode: %02x\n", inst, current_inst.cmd_num);
             assert(false);
             break;
     }
 }
 
-void GTE::MVMVA(GTEInstruction inst) {
+void GTE::MVMVA(const GTEInstruction& inst) {
     Matrix mx{};
     if (inst.mult_mat == 0) {
         mx = rotation;
@@ -307,7 +337,7 @@ void GTE::MVMVA(GTEInstruction inst) {
         mx[2][0] = mx[2][1] = mx[2][2] = rotation[1][1];
     }
 
-    glm::vec<3, int16_t> vx{};
+    Vec3 vx{};
     if (inst.mult_vec == 3) {
         vx.x = ir[1];
         vx.y = ir[2];
@@ -316,7 +346,7 @@ void GTE::MVMVA(GTEInstruction inst) {
         vx = v[inst.mult_vec];
     }
 
-    glm::vec<3, int32_t> tx{};
+    Vec3 tx{};
     if (inst.trans_vec == 0) {
         tx = trans_vec;
     } else if (inst.trans_vec == 1) {
@@ -326,15 +356,94 @@ void GTE::MVMVA(GTEInstruction inst) {
         // TODO: fix bugged MVMVA for this case;
     }
 
-    mac[1] = (tx.x * 0x1000 + mx[0][0] * vx.x + mx[0][1] * vx.y + mx[0][2] * vx.z);
-    mac[2] = (tx.x * 0x1000 + mx[1][0] * vx.x + mx[1][1] * vx.y + mx[1][2] * vx.z);
-    mac[3] = (tx.x * 0x1000 + mx[2][0] * vx.x + mx[2][1] * vx.y + mx[2][2] * vx.z);
-    if (inst.sf) {
-        mac[1] >>= 12;
-        mac[2] >>= 12;
-        mac[3] >>= 12;
+    Vec3 result = MultMatrixByVector(mx, vx);
+    SetMacAndIr<1>(tx.x * 0x1000 + result.x);
+    SetMacAndIr<1>(tx.y * 0x1000 + result.y);
+    SetMacAndIr<1>(tx.z * 0x1000 + result.z);
+}
+
+void GTE::RTPS(const GTEInstruction& inst, int vector) {
+    glm::vec<3, int32_t> result = MultMatrixByVector(rotation, v[vector]);
+    result.x += trans_vec.x * 0x1000;
+    result.y += trans_vec.y * 0x1000;
+    result.z += trans_vec.z * 0x1000;
+    SetMacAndIr<1>(result.x);
+    SetMacAndIr<2>(result.x);
+    SetMacAndIr<3>(result.x);
+    sz[3] = mac[3] >> ((1 - inst.sf) * 12);
+
+    //perform the UNR division algo
+    uint32_t n = 0;
+    if (h < sz[3] * 2) {
+        uint32_t z = GetLeadingZeroes(sz[3]);
+        n = h >> z;
+        uint32_t d = sz[3] >> z;
+        uint32_t u = UNR_table[(d - 0x7FC0) >> 7] + 0x101;
+        d = ((0x2000080 - (d * u)) >> 8);
+        d = ((0x0000080 + (d * u)) >> 8);
+        n = std::min((unsigned int)0x1FFFF, (((n * d) + 0x8000) >> 16));
+    } else {
+        n = 0x1FFFF;
+        flag.div_overflow = 1;
+        flag.error_flag = 1;
     }
-    ir[1] = mac[1];
-    ir[2] = mac[2];
-    ir[3] = mac[3];
+
+    int32_t x = ((int64_t)(n * ir[1]) + offset_x) >> 16;
+    SetArithmeticFlags<32>(x, Flag::Mac0OverflowNegative, Flag::Mac0OverflowPositive);
+    int32_t y = (n * ir[2] + offset_y) >> 16;
+    SetArithmeticFlags<32>(y, Flag::Mac0OverflowNegative, Flag::Mac0OverflowPositive);
+    PushScreenXY(x, y);
+
+    mac[0] = n * dqa + dqb;
+    SetArithmeticFlags<32>(mac[0], Flag::Mac0OverflowNegative, Flag::Mac0OverflowPositive);
+    ir[0] = clamp(mac[0] >> 12, 0x1000, 0, Flag::Ir0Saturated);
+}
+
+void GTE::RTPT(const GTEInstruction& inst) {
+    RTPS(inst, 0);
+    RTPS(inst, 1);
+    RTPS(inst, 2);
+}
+
+void GTE::NCLIP() {
+    mac[0] = sxy[0].x * sxy[1].y + sxy[1].x * sxy[2].y + sxy[2].x * sxy[0].y 
+        - sxy[0].x * sxy[2].y - sxy[1].x * sxy[0].y - sxy[2].x * sxy[1].y;
+    SetArithmeticFlags<32>(mac[0], Flag::Mac0OverflowNegative, Flag::Mac0OverflowPositive);
+}
+
+GTE::Vec3 GTE::MultMatrixByVector(const Matrix& m, const Vec3& v) {
+    Vec3 result{};
+    result.x = (m[0][0] * v.x + m[0][1] * v.y + m[0][2] * v.z);
+    result.y = (m[1][0] * v.x + m[1][1] * v.y + m[1][2] * v.z);
+    result.z = (m[2][0] * v.x + m[2][1] * v.y + m[2][2] * v.z);
+    return result;
+}
+
+constexpr std::array<uint8_t, 0x101> GTE::GenerateUNRTable() {
+    std::array<uint8_t, 0x101> UNR_table{{0}};
+    for (unsigned i = 0; i < UNR_table.size(); i++) {
+        UNR_table[i] = std::min((unsigned)0, (0x40000/(i + 0x100) + 1) / 2 - 0x101);
+    }
+    return UNR_table;
+}
+
+int32_t GTE::clamp(int32_t val, int32_t max, int32_t min, Flag flags) {
+    if (val > max) {
+        flag.reg |= (uint32_t)flags;
+        return max;
+    }
+    if (val < min) {
+        flag.reg |= (uint32_t)flags;
+        return min;
+    }
+    return val;
+}
+
+void GTE::PushScreenXY(int32_t x, int32_t y) {
+    sxy[0].x = sxy[1].x;
+    sxy[0].y = sxy[1].y;
+    sxy[1].x = sxy[2].x;
+    sxy[1].y = sxy[2].y;
+    sxy[2].x = clamp(x, 0x3FF, -0x400, Flag::Sx2Saturated);
+    sxy[2].y = clamp(y, 0x3FF, -0x400, Flag::Sx2Saturated);
 }

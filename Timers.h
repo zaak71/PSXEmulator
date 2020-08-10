@@ -1,9 +1,11 @@
 #pragma once
 
 #include <cstdint>
+#include "IRQ.h"
 
 class Timers {
 public:
+    void Init(IRQ* irq);
     void Cycle(int cycles);
 
     void Write16(uint32_t offset, uint16_t data);
@@ -11,6 +13,8 @@ public:
     uint16_t Read16(uint32_t offset);
     uint32_t Read32(uint32_t offset);
 private:
+    IRQ* irq;
+
     uint32_t curr_counter_val[3];
     union TimerMode {
         uint16_t reg = 0;

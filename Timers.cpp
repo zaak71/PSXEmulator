@@ -3,6 +3,10 @@
 #include <cstdio>
 #include <cassert>
 
+void Timers::Init(IRQ* irq) {
+	this->irq = irq;
+}
+
 void Timers::Cycle(int cycles) {
 	for (int i = 0; i < 3; i++) {
 		uint32_t& val = curr_counter_val[i];
@@ -10,10 +14,11 @@ void Timers::Cycle(int cycles) {
 		TimerMode& mode = counter_mode[i];
 		val += cycles;
 
+		bool could_irq = false;
 		if (val > target) {
 			mode.reached_tgt = 1;
 			if (mode.irq_target) {
-
+				could_irq = true;
 			}
 			if (mode.reset) {
 				val = 0;
@@ -22,11 +27,23 @@ void Timers::Cycle(int cycles) {
 		if (val > 0xFFFF) {
 			mode.reached_ffff = 1;
 			if (mode.irq_target) {
-
+				could_irq = true;
 			}
 			if (!mode.reset) {
 				val = 0;
 			}
+		}
+
+		if (could_irq) {
+			if (mode.toggle_mode) {
+				mode.irq = !mode.irq;
+			} else {
+				mode.irq = 0;
+			}
+			if (!mode.irq) {
+				irq->TriggerIRQ(4 + i);
+			}
+			mode.irq = true;
 		}
 	}
 }
