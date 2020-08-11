@@ -310,10 +310,12 @@ void GTE::ExecuteGTECommand(uint32_t inst) {
     flag.reg = 0;
     current_inst = GTEInstruction{inst};
     switch (current_inst.cmd_num) {
-        case 0x01: RTPS(current_inst, 0); break;
+        case 0x01: RTPS(0); break;
         case 0x06: NCLIP(); break;
-        case 0x12: MVMVA(current_inst); break;
-        case 0x30: RTPT(current_inst); break;
+        case 0x12: MVMVA(); break;
+        case 0x1B: NCCS(0); break;
+        case 0x30: RTPT(); break;
+        case 0x3F: NCCT(); break;
         default:
             printf("Unhandled GTE command: %08x\n GTE opcode: %02x\n", inst, current_inst.cmd_num);
             assert(false);
@@ -321,15 +323,15 @@ void GTE::ExecuteGTECommand(uint32_t inst) {
     }
 }
 
-void GTE::MVMVA(const GTEInstruction& inst) {
+void GTE::MVMVA() {
     Matrix mx{};
-    if (inst.mult_mat == 0) {
+    if (current_inst.mult_mat == 0) {
         mx = rotation;
-    } else if (inst.mult_mat == 1) {
+    } else if (current_inst.mult_mat == 1) {
         mx = light_source;
-    } else if (inst.mult_mat == 2) {
+    } else if (current_inst.mult_mat == 2) {
         mx = light_color;
-    } else if (inst.mult_mat == 3) {
+    } else if (current_inst.mult_mat == 3) {
         mx[0][0] = 0x60;
         mx[0][1] = -0x60;
         mx[0][2] = ir[0];
@@ -338,46 +340,34 @@ void GTE::MVMVA(const GTEInstruction& inst) {
     }
 
     Vec3 vx{};
-    if (inst.mult_vec == 3) {
-        vx.x = ir[1];
-        vx.y = ir[2];
-        vx.z = ir[3];
+    if (current_inst.mult_vec == 3) {
+        vx = GetIrVector();
     } else {
-        vx = v[inst.mult_vec];
+        vx = v[current_inst.mult_vec];
     }
 
     Vec3 tx{};
-    if (inst.trans_vec == 0) {
+    if (current_inst.trans_vec == 0) {
         tx = trans_vec;
-    } else if (inst.trans_vec == 1) {
+    } else if (current_inst.trans_vec == 1) {
         tx = bg_color;
-    } else if (inst.trans_vec == 2) {
+    } else if (current_inst.trans_vec == 2) {
         tx = far_color;
         // TODO: fix bugged MVMVA for this case;
     }
-
-    Vec3 result = MultMatrixByVector(mx, vx);
-    SetMacAndIr<1>(tx.x * 0x1000 + result.x);
-    SetMacAndIr<1>(tx.y * 0x1000 + result.y);
-    SetMacAndIr<1>(tx.z * 0x1000 + result.z);
+    MultMatrixByVector(mx, vx, tx);
 }
 
-void GTE::RTPS(const GTEInstruction& inst, int vector) {
-    glm::vec<3, int32_t> result = MultMatrixByVector(rotation, v[vector]);
-    result.x += trans_vec.x * 0x1000;
-    result.y += trans_vec.y * 0x1000;
-    result.z += trans_vec.z * 0x1000;
-    SetMacAndIr<1>(result.x);
-    SetMacAndIr<2>(result.x);
-    SetMacAndIr<3>(result.x);
-    sz[3] = mac[3] >> ((1 - inst.sf) * 12);
+void GTE::RTPS(int vector) {
+    MultMatrixByVector(rotation, v[vector], trans_vec);
+    sz[3] = mac[3] >> ((1 - current_inst.sf) * 12);
 
     //perform the UNR division algo
     uint32_t n = 0;
     if (h < sz[3] * 2) {
         uint32_t z = GetLeadingZeroes(sz[3]);
-        n = h >> z;
-        uint32_t d = sz[3] >> z;
+        n = h << z;
+        uint32_t d = sz[3] << z;
         uint32_t u = UNR_table[(d - 0x7FC0) >> 7] + 0x101;
         d = ((0x2000080 - (d * u)) >> 8);
         d = ((0x0000080 + (d * u)) >> 8);
@@ -388,7 +378,7 @@ void GTE::RTPS(const GTEInstruction& inst, int vector) {
         flag.error_flag = 1;
     }
 
-    int32_t x = ((int64_t)(n * ir[1]) + offset_x) >> 16;
+    int32_t x = (((int64_t)n * ir[1]) + offset_x) >> 16;
     SetArithmeticFlags<32>(x, Flag::Mac0OverflowNegative, Flag::Mac0OverflowPositive);
     int32_t y = (n * ir[2] + offset_y) >> 16;
     SetArithmeticFlags<32>(y, Flag::Mac0OverflowNegative, Flag::Mac0OverflowPositive);
@@ -399,10 +389,10 @@ void GTE::RTPS(const GTEInstruction& inst, int vector) {
     ir[0] = clamp(mac[0] >> 12, 0x1000, 0, Flag::Ir0Saturated);
 }
 
-void GTE::RTPT(const GTEInstruction& inst) {
-    RTPS(inst, 0);
-    RTPS(inst, 1);
-    RTPS(inst, 2);
+void GTE::RTPT() {
+    RTPS(0);
+    RTPS(1);
+    RTPS(2);
 }
 
 void GTE::NCLIP() {
@@ -411,12 +401,28 @@ void GTE::NCLIP() {
     SetArithmeticFlags<32>(mac[0], Flag::Mac0OverflowNegative, Flag::Mac0OverflowPositive);
 }
 
-GTE::Vec3 GTE::MultMatrixByVector(const Matrix& m, const Vec3& v) {
-    Vec3 result{};
-    result.x = (m[0][0] * v.x + m[0][1] * v.y + m[0][2] * v.z);
-    result.y = (m[1][0] * v.x + m[1][1] * v.y + m[1][2] * v.z);
-    result.z = (m[2][0] * v.x + m[2][1] * v.y + m[2][2] * v.z);
-    return result;
+void GTE::NCCS(int vector) {
+    MultMatrixByVector(light_source, v[vector]);
+    MultMatrixByVector(light_color, GetIrVector(), bg_color);
+    MultVectorByVector(GetRGBCVector(), GetIrVector());
+}
+
+void GTE::NCCT() {
+    NCCS(0);
+    NCCS(1);
+    NCCS(2);
+}
+
+void GTE::MultMatrixByVector(const Matrix& m, const Vec3& v, const Vec3& tr) {
+    SetMacAndIr<1>((tr.x << 12) + (m[0][0] * v.x + m[0][1] * v.y + m[0][2] * v.z));
+    SetMacAndIr<2>((tr.y << 12) + (m[1][0] * v.x + m[1][1] * v.y + m[1][2] * v.z));
+    SetMacAndIr<3>((tr.z << 12) + (m[2][0] * v.x + m[2][1] * v.y + m[2][2] * v.z));
+}
+
+void GTE::MultVectorByVector(const Vec3& v1, const Vec3& v2, const Vec3& tr) {
+    SetMacAndIr<1>(tr.x << 12 + v1.x * v2.x);
+    SetMacAndIr<2>(tr.y << 12 + v1.y * v2.y);
+    SetMacAndIr<3>(tr.z << 12 + v1.z * v2.z);
 }
 
 constexpr std::array<uint8_t, 0x101> GTE::GenerateUNRTable() {
@@ -446,4 +452,12 @@ void GTE::PushScreenXY(int32_t x, int32_t y) {
     sxy[1].y = sxy[2].y;
     sxy[2].x = clamp(x, 0x3FF, -0x400, Flag::Sx2Saturated);
     sxy[2].y = clamp(y, 0x3FF, -0x400, Flag::Sx2Saturated);
+}
+
+GTE::Vec3 GTE::GetIrVector() const {
+    return glm::vec<3, uint16_t> {ir[1], ir[2], ir[3]};
+}
+
+GTE::Vec3 GTE::GetRGBCVector() const {
+    return glm::vec<3, uint16_t> {rgbc.r << 4, rgbc.g << 4, rgbc.b << 4};
 }

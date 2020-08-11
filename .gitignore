@@ -341,3 +341,4 @@ healthchecksdb
 /ram.bin
 /exe
 *.bin
+*.cue

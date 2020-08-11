@@ -33,10 +33,12 @@ private:
     using Matrix = glm::mat<3, 3, int16_t>;
     using Vec3 = glm::vec<3, int16_t>;
 
-    void RTPS(const GTEInstruction& inst, int vector);
-    void MVMVA(const GTEInstruction& inst);
+    void RTPS(int vector);
+    void MVMVA();
     void NCLIP();
-    void RTPT(const GTEInstruction& inst);
+    void NCCS(int vector);
+    void RTPT();
+    void NCCT();
 
     union GTEFlag {
         uint32_t reg = 0;
@@ -92,16 +94,19 @@ private:
     };
 
     // Utility Functions
-    Vec3 MultMatrixByVector(const Matrix& m, const Vec3& v);
+    void MultMatrixByVector(const Matrix& m, const Vec3& v, const Vec3& tr = Vec3(0));
+    void MultVectorByVector(const Vec3& v1, const Vec3& v2, const Vec3& tr = Vec3(0));
     int32_t clamp(int32_t val, int32_t max, int32_t min, Flag flags);
     void PushScreenXY(int32_t x, int32_t y);
+    Vec3 GetIrVector() const;
+    Vec3 GetRGBCVector() const;
 
     template <int bits>
     void SetArithmeticFlags(int64_t val, Flag underflow_flag, Flag ov_flag) {
-        if (val >= (1L << (bits - 1))) {
+        if (val >= (1LL << (bits - 1))) {
             flag.reg |= (uint32_t)ov_flag;
         }
-        if (val < -(1L << (bits - 1))) {
+        if (val < -(1LL << (bits - 1))) {
             flag.reg |= (uint32_t)underflow_flag;
         }
     }
@@ -118,12 +123,12 @@ private:
         if (current_inst.sf) {
             val >>= 12;
         }
-        mac[index] = val;
+        mac[index] = (int32_t)val;
     }
 
     template <int index>
     void SetIr(int32_t val) {
-        uint32_t flag = 0;
+        Flag flag;
         if (index == 1) {
             flag = Flag::Ir1Saturated;
         } else if (index == 2) {
