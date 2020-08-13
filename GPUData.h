@@ -3,6 +3,13 @@
 #include <cstdint>
 #include "GPUCommands.h"
 
+enum class SemiTransparency {
+    B_2PlusF_2 = 0,
+    BPlusF = 1,
+    BMinusF = 2,
+    BPlusF_4 = 3
+};
+
 union Color {
     uint16_t raw = 0;
     struct {
@@ -21,6 +28,29 @@ union Color {
         this->r = r;
         this->g = g;
         this->b = b;
+    }
+
+    static Color Blend(const Color& b, const Color& f, const SemiTransparency& mode) {
+        Color c;
+        if (mode == SemiTransparency::B_2PlusF_2) {
+            c.r = b.r / 2 + f.r / 2;
+            c.g = b.g / 2 + f.g / 2;
+            c.b = b.b / 2 + f.b / 2;
+        } else if (mode == SemiTransparency::BPlusF) {
+            c.r = b.r + f.r;
+            c.g = b.g + f.g;
+            c.b = b.b + f.b;
+        } else if (mode == SemiTransparency::BMinusF) {
+            c.r = b.r - f.r;
+            c.g = b.g - f.g;
+            c.b = b.b - f.b;
+        } else if (mode == SemiTransparency::BPlusF_4) {
+            c.r = b.r + f.r / 4;
+            c.g = b.g + f.g / 4;
+            c.b = b.b + f.b / 4;
+        }
+        c.mask = f.mask;
+        return c;
     }
 };
 

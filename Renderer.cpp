@@ -25,6 +25,8 @@ void Renderer::DrawPolygon(const std::vector<uint32_t>& commands) {
         for (int i = 0; i < 3 + (args.four_point); i++) {
             colors[i] = Color(commands[3 * i]);
             vertices[i] = Vertex(commands[3 * i + 1]);
+            vertices[i].x += gpu->x_offset;
+            vertices[i].y += gpu->y_offset;
             texcoords[i] = Texcoord(commands[3 * i + 2], gpu->GetTexWindowSetting());
             points[i] = {vertices[i], colors[i], texcoords[i]};
         }
@@ -32,12 +34,16 @@ void Renderer::DrawPolygon(const std::vector<uint32_t>& commands) {
         for (int i = 0; i < 3 + (args.four_point); i++) {
             colors[i] = Color(commands[2 * i]);
             vertices[i] = Vertex(commands[2 * i + 1]);
+            vertices[i].x += gpu->x_offset;
+            vertices[i].y += gpu->y_offset;
             points[i] = { vertices[i], colors[i], texcoords[0] };
         }
     } else if (args.textured) {
         for (int i = 0; i < 3 + (args.four_point); i++) {
             colors[i] = Color(commands[0]);
             vertices[i] = Vertex(commands[2 * i + 1]);
+            vertices[i].x += gpu->x_offset;
+            vertices[i].y += gpu->y_offset;
             texcoords[i] = Texcoord(commands[2 * i + 2], gpu->GetTexWindowSetting());
             points[i] = { vertices[i], colors[i], texcoords[i] };
         }
@@ -45,6 +51,8 @@ void Renderer::DrawPolygon(const std::vector<uint32_t>& commands) {
         for (int i = 0; i < 3 + (args.four_point); i++) {
             colors[i] = Color(commands[0]);
             vertices[i] = Vertex(commands[i + 1]);
+            vertices[i].x += gpu->x_offset;
+            vertices[i].y += gpu->y_offset;
             points[i] = { vertices[i], colors[i], texcoords[0] };
         }
     }
@@ -57,7 +65,9 @@ void Renderer::DrawPolygon(const std::vector<uint32_t>& commands) {
         std::swap(point_data[1], point_data[2]);
         area = -area;
     }
-    DrawTriangle(args, point_data, area);
+    if (area > 0) {
+        DrawTriangle(args, point_data, area);
+    }
     if (args.four_point) {
         point_data = { points[1], points[2], points[3] };
         int area = orient2D(point_data[0].vertex, point_data[1].vertex, point_data[2].vertex);
@@ -65,7 +75,9 @@ void Renderer::DrawPolygon(const std::vector<uint32_t>& commands) {
             std::swap(point_data[1], point_data[2]);
             area = -area;
         }
-        DrawTriangle(args, point_data, area);
+        if (area > 0) {
+            DrawTriangle(args, point_data, area);
+        }
     }
 }
 
@@ -75,6 +87,11 @@ void Renderer::DrawTriangle(const PolygonArgs& args, const std::array<Point, 3>&
     int min_y = std::min(points[0].vertex.y, std::min(points[1].vertex.y, points[2].vertex.y));
     int max_x = std::max(points[0].vertex.x, std::max(points[1].vertex.x, points[2].vertex.x));
     int max_y = std::max(points[0].vertex.y, std::max(points[1].vertex.y, points[2].vertex.y));
+
+    min_x = std::max((int)gpu->drawing_area_left, std::max(min_x, (int)0));
+    min_y = std::max((int)gpu->drawing_area_top, std::max(min_y, (int)0));
+    max_x = std::min((int)gpu->drawing_area_right, std::min(max_x, (int)1024));
+    max_y = std::min((int)gpu->drawing_area_bottom, std::min(max_y, (int)512));
 
     Vertex v;
     for (v.y = min_y; v.y < max_y; v.y++) {
@@ -88,15 +105,27 @@ void Renderer::DrawTriangle(const PolygonArgs& args, const std::array<Point, 3>&
                 entered_row = true;
                 std::array<int, 3> coords = {w0, w1, w2};
                 Color mono = points[0].color;
+                Color bg, output;
+                if (v.x == 0 && v.y == 0) {
+                    printf("here\n");
+                }
+                bg.raw = gpu->GetVRAMFromPos(v.x, v.y);
                 if (!args.shaded && !args.textured) {
+                    if (args.semi_trans) {
+                        output = Color::Blend(bg, mono, (SemiTransparency)mode.semi_transparency);
+                    }
                     gpu->SetVRAMFromPos(v.x, v.y, mono.raw);
                     continue;
                 }
                 Color interpolated = GetColorFromBarycentricCoords(points, coords);
                 if (args.shaded && !args.textured) {
+                    if (args.semi_trans) {
+                        interpolated = Color::Blend(bg, interpolated, (SemiTransparency)mode.semi_transparency);
+                    }
                     gpu->SetVRAMFromPos(v.x, v.y, interpolated.raw);
                     continue;
                 }
+                // Now all pixels are textured here
                 std::array<Texcoord, 3> texcoords = {points[0].texcoord, 
                     points[1].texcoord, points[2].texcoord};
                 int x = (texcoords[0].x * coords[0] + texcoords[1].x * coords[1] + texcoords[2].x * coords[2]) 
@@ -108,14 +137,22 @@ void Renderer::DrawTriangle(const PolygonArgs& args, const std::array<Point, 3>&
                     continue;
                 }
                 if (args.raw_tex) {
-                    gpu->SetVRAMFromPos(v.x, v.y, tex_color.raw);
+                    output = tex_color;
+                    if (args.semi_trans) {
+                        output = Color::Blend(bg, tex_color, (SemiTransparency)mode.semi_transparency);
+                    }
+                    gpu->SetVRAMFromPos(v.x, v.y, output.raw);
                     continue;
                 }
-                Color output;
                 if (args.shaded) {
                     output = BlendTextureColor(interpolated, tex_color);
                 } else {
                     output = BlendTextureColor(mono, tex_color);
+                }
+                if (args.semi_trans) {
+                    if (output.mask) {
+                        output = Color::Blend(bg, output, (SemiTransparency)mode.semi_transparency);
+                    }
                 }
                 gpu->SetVRAMFromPos(v.x, v.y, output.raw);
             } else if (entered_row) {
@@ -128,13 +165,15 @@ void Renderer::DrawTriangle(const PolygonArgs& args, const std::array<Point, 3>&
 void Renderer::DrawRect(const std::vector<uint32_t>& commands) {
     Color c = Color(commands[0]);
     Vertex source = Vertex(commands[1]);
+    source.x += gpu->x_offset;
+    source.y += gpu->y_offset;
     Texcoord tex_source;
     RectangleArgs args {commands[0] >> 24};
     if (args.textured) {
         tex_source = Texcoord(commands[2], gpu->GetTexWindowSetting());
         palette = Palette::FromCommand(commands[2]);
-        mode = gpu->GetDrawMode();
     }
+    mode = gpu->GetDrawMode();
     uint32_t width = 0, height = 0;
     switch (args.size) {
         case Size::Variable:
@@ -153,24 +192,37 @@ void Renderer::DrawRect(const std::vector<uint32_t>& commands) {
         default:    // shouldn't reach here
             break;
     }
-    for (uint32_t x = source.x; x < source.x + width; x++) {
-        for (uint32_t y = source.y; y < source.y + height; y++) {
-            if (!args.textured) {
-                gpu->SetVRAMFromPos(x, y, c.raw);
-                continue;
-            }
-            Color tex_color = GetTextureColor(x - source.x, y - source.y);
-            if (tex_color.raw == 0x0000) {
-                continue;
-            }
-            if (args.raw_tex) {
-                gpu->SetVRAMFromPos(x, y, tex_color.raw);
-                continue;
-            } else {
-                Color output = BlendTextureColor(c, tex_color);
-                gpu->SetVRAMFromPos(x, y, output.raw);
-            }
 
+    int min_x = std::max((int)gpu->drawing_area_left, std::max((int)source.x, (int)0));
+    int min_y = std::max((int)gpu->drawing_area_top, std::max((int)source.y, (int)0));
+    int max_x = std::min((int)gpu->drawing_area_right, std::min((int)(source.x + width), (int)1024));
+    int max_y = std::min((int)gpu->drawing_area_bottom, std::min((int)(source.y + height), (int)512));
+
+    for (uint32_t x = min_x; x < max_x; x++) {
+        for (uint32_t y = min_y; y < max_y; y++) {
+            Color output;
+            if (!args.textured) {
+                if (args.semi_trans) {
+                    Color bg;
+                    bg.raw = gpu->GetVRAMFromPos(x, y);
+                    output = Color::Blend(bg, c, (SemiTransparency)mode.semi_transparency);
+                }
+                gpu->SetVRAMFromPos(x, y, output.raw);
+                continue;
+            }
+            output = GetTextureColor(x - source.x + tex_source.x, y - source.y + tex_source.y);
+            if (output.raw == 0x0000) {
+                continue;
+            }
+            if (!args.raw_tex) {
+                output = BlendTextureColor(c, output);
+            } 
+            if (args.semi_trans && (!args.textured || output.mask)) {
+                Color bg; 
+                bg.raw = gpu->GetVRAMFromPos(x, y);
+                output = Color::Blend(bg, output, (SemiTransparency)mode.semi_transparency);
+            }
+            gpu->SetVRAMFromPos(x, y, output.raw);
         }
     }
 }
@@ -180,6 +232,7 @@ Color Renderer::BlendTextureColor(const Color& color, const Color& tex_color) co
     c.r = std::min((color.r * tex_color.r) / 16, 31);
     c.g = std::min((color.g * tex_color.g) / 16, 31);
     c.b = std::min((color.b * tex_color.b) / 16, 31);
+    c.mask = tex_color.mask;
     return c;    
 }
 
@@ -199,20 +252,20 @@ Color Renderer::GetTextureColor(int x, int y) const {
     Color texture_color;
     if (mode.tex_page_colors == TextureDepth::FourBits) {
         uint16_t tex_x = mode.tex_page_x_base * 64 + x / 4;
-        uint16_t tex_y = mode.tex_page_y_base + y;
+        uint16_t tex_y = mode.tex_page_y_base * 256 + y;
         uint16_t texel = gpu->GetVRAMFromPos(tex_x, tex_y);
         int index = (texel >> (x % 4) * 4) & 0xFu;
         uint16_t palette_color = gpu->GetVRAMFromPos(palette.x * 16 + index, palette.y);
         texture_color.raw = palette_color;
     } else if (mode.tex_page_colors == TextureDepth::EightBits) {
         uint16_t tex_x = mode.tex_page_x_base * 64 + x / 2;
-        uint16_t tex_y = mode.tex_page_y_base + y;
+        uint16_t tex_y = mode.tex_page_y_base * 256 + y;
         uint16_t texel = gpu->GetVRAMFromPos(tex_x, tex_y);
         int index = (texel >> (x % 2) * 8) & 0xFFu;
         uint16_t palette_color = gpu->GetVRAMFromPos(palette.x * 16 + index, palette.y);
         texture_color.raw = palette_color;
     } else if (mode.tex_page_colors == TextureDepth::FifteenBits) {
-        uint16_t palette_color = gpu->GetVRAMFromPos(mode.tex_page_x_base * 64 + x, mode.tex_page_y_base + y);
+        uint16_t palette_color = gpu->GetVRAMFromPos(mode.tex_page_x_base * 64 + x, mode.tex_page_y_base * 256 + y);
         texture_color.raw = palette_color;
     }
     return texture_color;

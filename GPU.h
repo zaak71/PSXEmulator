@@ -31,6 +31,13 @@ public:
     void SetVRAMFromPos(uint16_t x, uint16_t y, uint16_t data);
     const TextureWindowSetting& GetTexWindowSetting() const {return tex_window_settings;};
     const DrawMode& GetDrawMode() const {return draw_mode;}
+
+    int16_t x_offset = 0;               // -1024...1023
+    int16_t y_offset = 0;               // -1024...1023
+    uint32_t drawing_area_top = 0;
+    uint32_t drawing_area_bottom = 0;
+    uint32_t drawing_area_left = 0;
+    uint32_t drawing_area_right = 0;
 private:
     Renderer renderer = Renderer(this);
     IRQ* irq;
@@ -38,6 +45,8 @@ private:
     const int kCyclesPerFrame = 33868800 / 60;
     int cycles_ran = 0;
     int frames = 0;
+    int gpu_dot = 0;
+    int gpu_lines = 0;
 
     VRAM vram{};
     void MoveVRAMTransferPosition();
@@ -75,12 +84,6 @@ private:
     uint32_t vert_disp_y1 = 0;
     uint32_t vert_disp_y2 = 0;
     TextureWindowSetting tex_window_settings;
-    uint32_t drawing_area_top = 0;
-    uint32_t drawing_area_bottom = 0;
-    uint32_t drawing_area_left = 0;
-    uint32_t drawing_area_right = 0;
-    int16_t x_offset = 0;               // -1024...1023
-    int16_t y_offset = 0;               // -1024...1023
 
     uint16_t transfer_start_x = 0;
     uint16_t transfer_start_y = 0;
@@ -94,7 +97,7 @@ private:
         struct {
             uint32_t tex_page_x_base : 4;		// N*64
             uint32_t tex_page_y_base : 1;		// 0 or 256
-            uint32_t semi_transparency : 2;		// 0..3=B/2+F/2, B+F, B-F, B+F/4
+            SemiTransparency semi_transparency : 2; // 0..3=B/2+F/2, B+F, B-F, B+F/4
             TextureDepth tex_page_colors : 2;		// 0..2=4, 8, 15 bits
             uint32_t dither : 1;				// 0=Off/Strip LSBs, 1=Enabled
             uint32_t draw_to_disp_area : 1;		// 0=Prohibited, 1=Allowed

@@ -12,15 +12,28 @@ void GPU::Init(IRQ* irq) {
 }
 
 bool GPU::Cycle(int cycles) {
-    cycles_ran += cycles;
-    if (cycles_ran >= kCyclesPerFrame) {
-        cycles_ran = 0;
-        frames++;
-        if (frames % 2 == 0) {
-            GPUSTAT.draw_even_odd_lines = 0;
+    gpu_dot += cycles;
+    int new_lines = gpu_dot / 3413;
+    if (new_lines == 0) {
+        return false;
+    }
+    gpu_dot %= 3413;
+    gpu_lines += new_lines;
+
+    if (gpu_lines < 242) {
+        if (GPUSTAT.vert_res && GPUSTAT.vert_interlace) {
+            GPUSTAT.draw_even_odd_lines = (frames % 2) != 0;
         } else {
-            GPUSTAT.draw_even_odd_lines = 1;
+            GPUSTAT.draw_even_odd_lines = (gpu_lines % 2) != 0;
         }
+        
+    } else {
+        GPUSTAT.draw_even_odd_lines = 0;
+    }
+
+    if (gpu_lines == 262) {
+        gpu_lines = 0;
+        frames++;
         irq->TriggerIRQ(0);
         return true;
     }
@@ -103,7 +116,7 @@ void GPU::Write32(uint32_t offset, uint32_t data) {
 
 void GPU::GP0Command(uint32_t command) {
     uint32_t opcode = command >> 24;
-    
+    printf("GP0 Command: %08x\n", command);
     if (curr_cmd == CommandType::Other) {
         command_fifo.clear();
         command_fifo.push_back(command);
@@ -160,13 +173,13 @@ void GPU::GP0Command(uint32_t command) {
 
     // Now all the data for drawing or copy params is received
     if (curr_cmd == CommandType::DrawPolygon) {
-        printf("Drawing polygon\n");
+        //printf("Drawing Polygon (%02x)\n", command_fifo[0] >> 24);
         uint8_t opcode = command_fifo[0] >> 24;
         std::vector<uint32_t> commands(command_fifo.begin(), command_fifo.end());
         renderer.DrawPolygon(commands);
         curr_cmd = CommandType::Other;
     } else if (curr_cmd == CommandType::DrawRect) {
-        printf("Drawing Reactangle\n");
+        //printf("Drawing Rectangle (%02x)\n", command_fifo[0] >> 24);
         uint8_t opcode = command_fifo[0] >> 24;
         std::vector<uint32_t> commands(command_fifo.begin(), command_fifo.end());
         renderer.DrawRect(commands);
@@ -194,7 +207,7 @@ void GPU::GP0Command(uint32_t command) {
             printf("Copying Rectangle from VRAM to CPU\n");
             curr_cmd = CommandType::Other;
         } else {
-            printf("Unhandled Reactangle Copy\n");
+            printf("Unhandled Rectangle Copy\n");
             assert(false);
         }
         
@@ -217,6 +230,7 @@ void GPU::GP1Command(uint32_t command) {
             command_fifo.clear();
             commands_left = 0;
             curr_cmd = CommandType::Other;
+            break;
         case 0x02:
             GPUSTAT.irq = 0;
             break;
@@ -252,9 +266,9 @@ void GPU::GP1Command(uint32_t command) {
 
 void GPU::FillRectInVRAM() {
     Color color = Color(command_fifo[0]);
-    uint32_t x = command_fifo[1] & 0xFFFFu;
-    uint32_t y = command_fifo[1] >> 16;
-    uint32_t width = command_fifo[2] & 0xFFFFu;
+    uint32_t x = (command_fifo[1] & 0xFFFFu) & 0x3F0;
+    uint32_t y = (command_fifo[1] >> 16) & 0x1FF;
+    uint32_t width = (command_fifo[2] & 0xFFFFu);
     uint32_t height = command_fifo[2] >> 16;
     width = ((width & 0x3FF) + 0x0F) & (~0x0F);
     height &= 0x1FF;
