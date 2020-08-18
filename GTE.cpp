@@ -405,6 +405,7 @@ void GTE::NCCS(int vector) {
     MultMatrixByVector(light_source, v[vector]);
     MultMatrixByVector(light_color, GetIrVector(), bg_color);
     MultVectorByVector(GetRGBCVector(), GetIrVector());
+    PushColor(mac[1] >> 4, mac[2] >> 4, mac[3] >> 4);
 }
 
 void GTE::NCCT() {
@@ -452,6 +453,15 @@ void GTE::PushScreenXY(int32_t x, int32_t y) {
     sxy[1].y = sxy[2].y;
     sxy[2].x = clamp(x, 0x3FF, -0x400, Flag::Sx2Saturated);
     sxy[2].y = clamp(y, 0x3FF, -0x400, Flag::Sx2Saturated);
+}
+
+void GTE::PushColor(uint32_t r, uint32_t g, uint32_t b) {
+    rgb[0] = rgb[1];
+    rgb[1] = rgb[2];
+
+    rgb[2].r = clamp(r, 0xFF, 0x00, Flag::ColorFifoRSaturated);
+    rgb[2].g = clamp(g, 0xFF, 0x00, Flag::ColorFifoGSaturated);
+    rgb[2].b = clamp(b, 0xFF, 0x00, Flag::ColorFifoBSaturated);
 }
 
 GTE::Vec3 GTE::GetIrVector() const {

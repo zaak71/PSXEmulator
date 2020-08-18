@@ -98,6 +98,7 @@ private:
     void MultVectorByVector(const Vec3& v1, const Vec3& v2, const Vec3& tr = Vec3(0));
     int32_t clamp(int32_t val, int32_t max, int32_t min, Flag flags);
     void PushScreenXY(int32_t x, int32_t y);
+    void PushColor(uint32_t r, uint32_t g, uint32_t b);
     Vec3 GetIrVector() const;
     Vec3 GetRGBCVector() const;
 
