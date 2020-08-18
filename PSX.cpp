@@ -47,7 +47,7 @@ const GPU::VRAM& PSX::GetVRAM() const {
 void PSX::LoadExe(const std::string& path) {
     std::ifstream exe_file(path, std::ios::binary | std::ios::in | std::ios::ate);
     exe_file.seekg(0, exe_file.end);
-    int size = exe_file.tellg();
+    auto size = exe_file.tellg();
     exe_file.seekg(0, exe_file.beg);
 
     exe_data.resize(size);
@@ -58,7 +58,7 @@ void PSX::LoadExe(const std::string& path) {
 
     memcpy(&exe, exe_data.data(), sizeof(exe));
 
-    for (int i = 0; i < exe.dest_size; i++) {
+    for (uint32_t i = 0; i < exe.dest_size; i++) {
         Write8(exe.dest_addr + i, exe_data[0x800 + i]);
     }
 }

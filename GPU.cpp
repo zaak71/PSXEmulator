@@ -272,8 +272,8 @@ void GPU::FillRectInVRAM() {
     uint32_t height = command_fifo[2] >> 16;
     width = ((width & 0x3FF) + 0x0F) & (~0x0F);
     height &= 0x1FF;
-    for (int i = x; i < x + width; i++) {
-        for (int j = y; j < y + height; j++) {
+    for (uint32_t i = x; i < x + width; i++) {
+        for (uint32_t j = y; j < y + height; j++) {
             SetVRAMFromPos(i, j, color.raw);
         }
     }

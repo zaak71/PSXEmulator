@@ -129,11 +129,11 @@ private:
     template <int index>
     void SetIr(int32_t val) {
         Flag flag;
-        if (index == 1) {
+        if constexpr (index == 1) {
             flag = Flag::Ir1Saturated;
-        } else if (index == 2) {
+        } else if constexpr (index == 2) {
             flag = Flag::Ir2Saturated;
-        } else if (index == 3) {
+        } else if constexpr (index == 3) {
             flag = Flag::Ir3Saturated;
         }
         ir[index] = clamp(val, 0x7FFF, current_inst.lm ? 0: -0x8000, flag);

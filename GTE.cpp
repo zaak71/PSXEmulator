@@ -420,9 +420,9 @@ void GTE::MultMatrixByVector(const Matrix& m, const Vec3& v, const Vec3& tr) {
 }
 
 void GTE::MultVectorByVector(const Vec3& v1, const Vec3& v2, const Vec3& tr) {
-    SetMacAndIr<1>(tr.x << 12 + v1.x * v2.x);
-    SetMacAndIr<2>(tr.y << 12 + v1.y * v2.y);
-    SetMacAndIr<3>(tr.z << 12 + v1.z * v2.z);
+    SetMacAndIr<1>((tr.x << 12) + v1.x * v2.x);
+    SetMacAndIr<2>((tr.y << 12) + v1.y * v2.y);
+    SetMacAndIr<3>((tr.z << 12) + v1.z * v2.z);
 }
 
 constexpr std::array<uint8_t, 0x101> GTE::GenerateUNRTable() {

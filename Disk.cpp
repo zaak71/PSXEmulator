@@ -3,7 +3,7 @@
 void Disk::LoadGame(const std::string& path) {
     game_file = std::ifstream(path, std::ios::binary | std::ios::in);
     game_file.seekg(0, game_file.end);
-    int size = game_file.tellg();
+    auto size = game_file.tellg();
     game_file.seekg(0, game_file.beg);
 
     data.resize(size);

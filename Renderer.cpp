@@ -198,8 +198,8 @@ void Renderer::DrawRect(const std::vector<uint32_t>& commands) {
     int max_x = std::min((int)gpu->drawing_area_right, std::min((int)(source.x + width), (int)1024));
     int max_y = std::min((int)gpu->drawing_area_bottom, std::min((int)(source.y + height), (int)512));
 
-    for (uint32_t x = min_x; x < max_x; x++) {
-        for (uint32_t y = min_y; y < max_y; y++) {
+    for (int x = min_x; x < max_x; x++) {
+        for (int y = min_y; y < max_y; y++) {
             Color output;
             if (!args.textured) {
                 if (args.semi_trans) {
