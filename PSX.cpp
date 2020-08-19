@@ -16,6 +16,7 @@ PSX::PSX() {
     sys_cdrom = std::make_unique<cdrom>();
     sys_joypad = std::make_unique<Joypad>();
     sys_scratchpad = std::make_unique<Scratchpad>();
+    sys_mdec = std::make_unique<MDEC>();
 
     sys_bios->LoadBios("bios/SCPH1001.BIN");
     sys_dma->Init(sys_ram.get(), this, sys_irq.get(), sys_gpu.get(), sys_cdrom.get(), sys_spu.get());
@@ -170,6 +171,12 @@ uint32_t PSX::Read32(uint32_t address) const {
     } else if (address >= MEM_CONTROL_1_START
         && address + 4 <= MEM_CONTROL_1_START + MEM_CONTROL_1_SIZE) {
         return 0;
+    } else if (address >= MEM_CONTROL_2_START
+        && address + 4 <= MEM_CONTROL_2_START + MEM_CONTROL_2_SIZE) {
+        return 0;
+    } else if (address >= MDEC_START
+        && address + 4 <= MDEC_START + MDEC_SIZE) {
+        return sys_mdec->Read32(address - MDEC_START);
     } else {
         printf("Unhandled memory access of size 32 at address %08x\n", address);
         assert(false);
@@ -216,6 +223,9 @@ void PSX::Write32(uint32_t address, const uint32_t data) {
     } else if (address >= TIMER_START
         && address + 4 <= TIMER_START + TIMER_SIZE) {
         sys_timers->Write32(address - TIMER_START, data);
+    } else if (address >= MDEC_START
+        && address + 4 <= MDEC_START + MDEC_SIZE) {
+        sys_mdec->Write32(address - MDEC_START, data);
     } else {
         printf("Unhandled write of size 32 at address %08x, data %08x\n", address, data);
         assert(false);

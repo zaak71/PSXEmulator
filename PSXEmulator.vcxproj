@@ -163,6 +163,7 @@
     <ClCompile Include="GTE.cpp" />
     <ClCompile Include="IRQ.cpp" />
     <ClCompile Include="Joypad.cpp" />
+    <ClCompile Include="MDEC.cpp" />
     <ClCompile Include="PSX.cpp" />
     <ClCompile Include="CPU.cpp" />
     <ClCompile Include="main.cpp" />
@@ -186,6 +187,7 @@
     <ClInclude Include="instruction.h" />
     <ClInclude Include="IRQ.h" />
     <ClInclude Include="Joypad.h" />
+    <ClInclude Include="MDEC.h" />
     <ClInclude Include="PSX.h" />
     <ClInclude Include="Constants.h" />
     <ClInclude Include="CPU.h" />

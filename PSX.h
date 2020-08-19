@@ -13,6 +13,7 @@
 #include "GPU.h"
 #include "cdrom.h"
 #include "Joypad.h"
+#include "MDEC.h"
 
 class PSX {
 public:
@@ -40,6 +41,7 @@ private:
     std::unique_ptr<cdrom> sys_cdrom;
     std::unique_ptr<Joypad> sys_joypad;
     std::unique_ptr<Scratchpad> sys_scratchpad;
+    std::unique_ptr<MDEC> sys_mdec;
 
     const uint32_t region_mask[8] = {
     0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,     // KUSEG

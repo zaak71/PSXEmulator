@@ -72,6 +72,9 @@
     <ClCompile Include="Disk.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="MDEC.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="bios.h">
@@ -138,6 +141,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Disk.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="MDEC.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
