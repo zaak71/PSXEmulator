@@ -19,7 +19,7 @@ PSX::PSX() {
     sys_mdec = std::make_unique<MDEC>();
 
     sys_bios->LoadBios("bios/SCPH1001.BIN");
-    sys_dma->Init(sys_ram.get(), this, sys_irq.get(), sys_gpu.get(), sys_cdrom.get(), sys_spu.get());
+    sys_dma->Init(sys_ram.get(), this, sys_irq.get(), sys_gpu.get(), sys_cdrom.get(), sys_spu.get(), sys_mdec.get());
     sys_gpu->Init(sys_irq.get());
     sys_cdrom->Init(sys_irq.get());
     sys_timers->Init(sys_irq.get());

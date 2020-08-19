@@ -10,19 +10,19 @@ void MDEC::Write32(uint32_t offset, uint32_t data) {
                 status.param_words_minus_1 = (params_left - 1) & 0xFFFF;
             } else {
                 switch (curr_cmd) {
-                    case MDEC::MDECCommands::None:
-                        break;
                     case MDEC::MDECCommands::DecodeMacroblock:
                         break;
                     case MDEC::MDECCommands::SetQuantTable: {
                         uint8_t* table_ptr = NULL;
-                        size_t base = 0;
+                        uint32_t base = 0;
                         if (param_num < 64 / 4) {
                             base = param_num * 4;
                             table_ptr = luminance_quant_table.data();
                         } else if (param_num < 128 / 4) {
                             base = (param_num - 64 / 4) * 4;
                             table_ptr = color_quant_table.data();
+                        } else {
+                            break;
                         }
 
                         for (int i = 0; i < 4; i++) {
@@ -31,7 +31,11 @@ void MDEC::Write32(uint32_t offset, uint32_t data) {
                         break;
                     }
                     case MDEC::MDECCommands::SetScaleTable:
+                        for (int i = 0; i < 2; i++) {
+                            idct_table[param_num * 2 + i] = data >> (i * 16);
+                        }
                         break;
+                    case MDEC::MDECCommands::None:
                     default:
                         break;
                 }
@@ -71,6 +75,7 @@ uint32_t MDEC::Read32(uint32_t offset) {
 
 void MDEC::HandleCommand(uint32_t command) {
     MDECCommand cmd {command};
+    param_num = 0;
     switch (cmd.opcode) {
         case 0x02:
             curr_cmd = MDECCommands::SetQuantTable;
@@ -79,6 +84,11 @@ void MDEC::HandleCommand(uint32_t command) {
             } else {
                 params_left = 64 / 4;   // 64 bytes
             }
+            status.cmd_busy = 1;
+            break;
+        case 0x03:
+            curr_cmd = MDECCommands::SetScaleTable;
+            params_left = 64 / 2;       // 64 halfwords
             status.cmd_busy = 1;
             break;
         default:

@@ -14,6 +14,7 @@ private:
     uint32_t params_left = 0;
     std::array<uint8_t, 64> luminance_quant_table {};
     std::array<uint8_t, 64> color_quant_table {};
+    std::array<int16_t, 64> idct_table {};
 
     enum class MDECCommands {
         None = 0,

@@ -4,13 +4,14 @@
 #include <cassert>
 #include <cstdio>
 
-void DMA::Init(RAM* ram, PSX* sys, IRQ* irq, GPU* gpu, cdrom* CDROM, SPU* spu) {
+void DMA::Init(RAM* ram, PSX* sys, IRQ* irq, GPU* gpu, cdrom* CDROM, SPU* spu, MDEC* mdec) {
     this->ram = ram;
     this->sys = sys;
     this->irq = irq;
     this->gpu = gpu;
     this->CDROM = CDROM;
     this->spu = spu;
+    this->mdec = mdec;
 }
 
 void DMA::Cycle() {
@@ -191,6 +192,15 @@ void DMA::DoManualTransfer(uint32_t channel) {
                 uint32_t src = sys->Read32(addr);
                 spu->Write16(0x1F801DA8, src >> 16);
                 spu->Write16(0x1F801DA8, src >> 0);
+            }
+            curr_channel.FinishTransfer();
+            if (DMA_interrupt.irq_enable & (1 << channel) || DMA_interrupt.irq_master_enable) {
+                DMA_interrupt.irq_flags |= (1 << channel);
+            }
+        } else if (ch == Channel::MDECIn) {
+            for (uint32_t i = 0; i < size; i++, addr += inc) {
+                uint32_t data = sys->Read32(addr);
+                mdec->Write32(0, data);
             }
             curr_channel.FinishTransfer();
             if (DMA_interrupt.irq_enable & (1 << channel) || DMA_interrupt.irq_master_enable) {

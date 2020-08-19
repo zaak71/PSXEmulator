@@ -11,7 +11,10 @@ void cdrom::Cycle() {
         }
     }
 
-    constexpr int magic = 1150;
+    int magic = 1150;
+    if (!mode.speed) {
+        magic *= 2;
+    }
     if (status_code.read) {
         if (--steps_until_read == 0) {
             steps_until_read = magic;
@@ -29,7 +32,7 @@ void cdrom::Init(IRQ* irq) {
     this->irq = irq;
     mm = ss = sect = 0;
     read_sector = seek_sector = 0;
-    game_disk.LoadGame("games/crash.BIN");
+    game_disk.LoadGame("games/ff7_d1_1.BIN");
 }
 
 void cdrom::Write8(uint32_t offset, uint8_t data) {
@@ -52,7 +55,7 @@ void cdrom::Write8(uint32_t offset, uint8_t data) {
         vol_right_left = data;
     } else if (offset == 3 && status.index == 0) {
         if (data & 0x80 && IsBufferEmpty()) {
-            data_buffer = std::move(read_data);
+            data_buffer = read_data;
             data_buffer_index = 0;
             status.data_fifo_empty = 1;
         } else {
@@ -73,8 +76,7 @@ void cdrom::Write8(uint32_t offset, uint8_t data) {
         vol_left_right = data;
     } else if (offset == 3 && status.index == 3) {
         // Apply Volume changes : Ignored for now
-    }
-    else {
+    } else {
         printf("Unhandled CDROM write at offset %01x, data %02x, index %01x\n",
             offset, data, status.index);
         assert(false);
