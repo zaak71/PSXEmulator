@@ -114,11 +114,11 @@ private:
 
     template <int index>
     void SetMac(int64_t val) {
-        if (index == 1) {
+        if constexpr (index == 1) {
             SetArithmeticFlags<44>(val, Flag::Mac1OverflowNegative, Flag::Mac1OverflowPositive);
-        } else if (index == 2) {
+        } else if constexpr (index == 2) {
             SetArithmeticFlags<44>(val, Flag::Mac2OverflowNegative, Flag::Mac2OverflowPositive);
-        } else if (index == 3) {
+        } else if constexpr (index == 3) {
             SetArithmeticFlags<44>(val, Flag::Mac3OverflowNegative, Flag::Mac3OverflowPositive);
         }
         if (current_inst.sf) {

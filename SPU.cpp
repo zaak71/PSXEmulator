@@ -79,8 +79,7 @@ void SPU::Write16(uint32_t address, uint16_t data) {
 			write_address = sram_data_transfer_address * 8;
 			break;
 		case 0xDA8:
-			sram_data_transfer_fifo = data;
-			Write<uint8_t>(write_address++, data);
+			Write<uint8_t>(write_address++, (uint8_t)data);
 			Write<uint8_t>(write_address++, (uint8_t)(data >> 8));
 			break;
 		case 0xDAA:

@@ -8,7 +8,7 @@
 void GPU::Init(IRQ* irq) {
     vram.fill(0);
     this->irq = irq;
-    read_mode = GPUREADMode::VRAM;
+    read_mode = GPUREADMode::GPUInfo;
 }
 
 bool GPU::Cycle(int cycles) {
@@ -46,13 +46,11 @@ uint32_t GPU::Read32(uint32_t offset) {
             if (read_mode == GPUREADMode::VRAM) {
                 return ReadVRAM();
             } else {
-                read_mode = GPUREADMode::VRAM;
                 return read_data;
             }
             break;
         case 4:
-            // HACK: hardcode bit 19 to zero
-            return GPUSTAT.reg & ~(1 << 19);
+            return GPUSTAT.reg;
             break;
         default:
             printf("Invalid access to GPU at offset %02x\n", offset);
@@ -206,6 +204,7 @@ void GPU::GP0Command(uint32_t command) {
         } else if (copy_dir == CopyDirection::VRAMtoCPU) {
             printf("Copying Rectangle from VRAM to CPU\n");
             curr_cmd = CommandType::Other;
+            read_mode = GPUREADMode::GPUInfo;
         } else {
             printf("Unhandled Rectangle Copy\n");
             assert(false);

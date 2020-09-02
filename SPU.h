@@ -143,7 +143,6 @@ private:
     } sram_data_transfer_control;
 
     uint16_t sram_data_transfer_address = 0;
-    uint16_t sram_data_transfer_fifo = 0;
     int write_address;
 
     struct Voice {
